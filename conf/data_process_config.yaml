@@ -1,0 +1,12 @@
+defaults:
+    - files: simulated_data
+    - _self_
+paths:
+    log: ./runs
+    data: ${hydra:runtime.cwd}
+params:
+     train_test_split_method: random # type of data split: supports random/temporal (if temporal assumes data_dict has index_date key
+     min_test_year: 2020  # if temporal split is chosen: first year of test set
+     test_size: 0.2 # if random split is chosen
+     impute: True # impute null values: binary with 0, numeric with mode
+     categorical: cat_codes # type of categorical handling: supports cat_codes / dummy
