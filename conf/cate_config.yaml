@@ -18,11 +18,10 @@ params:
     boruta_clf_arg_dict: {"max_depth": 5, "n_estimators": 1000} # pass to clf in boruta fs METHOD
     boruta_perc: 100 # hyper parameters of boruta FS
     boruta_alpha: 0.05 # hyper parameters of boruta FS
-    clf_name_list: [lgbm, GaussianProcessClassifier, RandomForestClassifier, LogisticRegression,
-                    GradientBoostingClassifier] # list of clf to test
+    clf_name_list: [lgbm] # list of clf to test
     score_name: log_loss # metric
-    inner_fold_num: 7 # when nested CV is performed in clf training - hyper-parameters inner loop folds
-    outer_fold_num: 7 #  when nested CV is performed in clf training - model selection outer loop folds
+    inner_fold_num: 5 # when nested CV is performed in clf training - hyper-parameters inner loop folds
+    outer_fold_num: 5 #  when nested CV is performed in clf training - model selection outer loop folds
     skip_propensity_trimming: False # flag if to perform propensity based trimming
     test_propensity: True # flag to refit propensity for policy evaluation on test set
     interactive_env: True # if env allows interactive graphs via http port to show plotly express interactive graphs

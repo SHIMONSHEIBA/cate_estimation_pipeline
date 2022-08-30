@@ -37,7 +37,7 @@ def save_simulated_data() -> None:
         num_discrete_common_causes=3,
         num_discrete_instruments=1,
         num_discrete_effect_modifiers=1,
-        num_samples=10000,
+        num_samples=1000,
         treatment_is_binary=True,
         outcome_is_binary=True)
 

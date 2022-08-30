@@ -195,7 +195,7 @@ def binary_clf_eval(model, data, chosen_ftrs, outcome_name, model_name, dataset,
     y_score_treatment_df = pd.DataFrame(data=np.column_stack((y_score, data[outcome_name].values)),
                                         columns=["y_score", outcome_name])
     sns.histplot(data=y_score_treatment_df,
-                 x="y_score", hue=outcome_name, stat="percent").set_title("{} {} {}".format("Histogram", model_name, dataset))
+                 x="y_score", hue=outcome_name, stat="count").set_title("{} {} {}".format("Histogram", model_name, dataset))
     # plt.show()
     plt.tight_layout()
     plt.ioff()
