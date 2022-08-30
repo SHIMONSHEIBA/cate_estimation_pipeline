@@ -1,7 +1,6 @@
 """
 Module containing the main class for managing the causal discovery outputs for the Causalis engine
 """
-# import logging
 import pandas as pd
 from utils_ml import run_causalnex
 
@@ -46,8 +45,6 @@ class CausalisGraph:
         for x in [[self._treatment], [self._outcome], self._common_causes, self._effect_modifiers, self._instruments]:
             if x is not None:
                 self._all_variables = list(set(self._all_variables).union(x))
-
-        # self.logger = logging.getLogger(__name__)
 
     def run_causalnex_notears(self):
         """

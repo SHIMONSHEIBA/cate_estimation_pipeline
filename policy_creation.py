@@ -23,27 +23,10 @@ class PolicyCreation:
         :param no_rec_value: special value that indicates no recommendation due to various reasons
         """
 
-        # self.policy_type_dict = {0: "majority", 1: "weighted", 2: "consensus", 3: "dictator", 4: "average"}
-        # log.info("supported policy types are: {}".format(self.policy_type_dict))
-        # self.chosen_policy_type = None
         self.no_rec_value = no_rec_value
         log.info("No recommendation special valus is: {}".format(self.no_rec_value))
         self.outcome_is_cost = outcome_is_cost
         log.info("Policy for outcome_is_cost: {}".format(self.outcome_is_cost))
-
-    # def set_policy_type(self, policy_type_key: int):
-    #     """
-    #     define policy type: majority, weighted, consensus, dictator. Depends if there are multiple CATE estimators
-    #     :return:
-    #     """
-    #
-    #     try:
-    #         self.chosen_policy_type = self.policy_type_dict[policy_type_key]
-    #         log.info("chosen type is: {}".format(self.chosen_policy_type))
-    #
-    #     except LookupError:
-    #         log.info("No such key in self.policy_type_dict, please choose a supported policy type:\n "
-    #               "{}".format(self.policy_type_dict))
 
     def filter_uncertainty_cate_estimations(self):
         """
@@ -51,16 +34,6 @@ class PolicyCreation:
         :return:
         """
         raise NotImplementedError
-    #
-    # def calc_cate_df(self, y1_score: np.ndarray, y0_score: np.ndarray):
-    #     """
-    #     Assuming same length
-    #     :param y1_score: probabilities for entire data to be classified as y1
-    #     :param y0_score:  probabilities for entire data to be classified as y0
-    #     :return:
-    #     """
-    #     # TODO: move to a CATE class and add multiple cate columns
-    #     return pd.DataFrame(data=y1_score-y0_score)
 
     def calc_policy(self, cates_df: pd.DataFrame, cols_to_exclude: list):
         """
@@ -145,96 +118,3 @@ class PolicyCreation:
         policies_df["random"] = np.random.randint(2, size=policies_df.shape[0])
 
         return policies_df
-    
-    def temp_calc_policy_by_learner(self, causal_learner_type, data, treatment_name, chosen_features_dict,
-                                    chosen_outcome_model_name_dict, chosen_outcome_model_name, 
-                                    top_outcome_shap_features, rlearner_obj, xlearner_obj):
-        # TODO: refactor
-        # # TODO: clean chosen_features_dict_shap_step from causal_learner_type
-        # if causal_learner_type == "slearner":
-        #     # create copy with T=0 for all
-        #     trimmed_train_data_chosen_features_t0 = \
-        #         data[chosen_features_dict[0]].copy(deep=True)
-        #     trimmed_train_data_chosen_features_t0.loc[:, treatment_name] = 0
-        #     # create copy with T=1 for all
-        #     trimmed_train_data_chosen_features_t1 = \
-        #         data[chosen_features_dict[1]].copy(deep=True)
-        #     trimmed_train_data_chosen_features_t1.loc[:, treatment_name] = 1
-        #
-        #     cate_df = self.calc_cate_df(y1_score=
-        #                                                    chosen_outcome_model_name_dict["all"][
-        #                                                        chosen_outcome_model_name]
-        #                                                    .predict_proba(trimmed_train_data_chosen_features_t1)[:, 1],
-        #                                                    y0_score=
-        #                                                    chosen_outcome_model_name_dict["all"][
-        #                                                        chosen_outcome_model_name].
-        #                                                    predict_proba(trimmed_train_data_chosen_features_t0)[:, 1])
-        #     # predict y hat from S learner
-        #     y0_hat = chosen_outcome_model_name_dict["all"][chosen_outcome_model_name].predict(
-        #         trimmed_train_data_chosen_features_t0)
-        #     y1_hat = chosen_outcome_model_name_dict["all"][chosen_outcome_model_name].predict(
-        #         trimmed_train_data_chosen_features_t1)
-        #
-        # elif causal_learner_type == "tlearner":
-        #     cate_df = self.calc_cate_df(y1_score=
-        #                                                    chosen_outcome_model_name_dict[1][chosen_outcome_model_name]
-        #                                                    .predict_proba(
-        #                                                        data[chosen_features_dict[1]])[:, 1],
-        #                                                    y0_score=
-        #                                                    chosen_outcome_model_name_dict[0][chosen_outcome_model_name].
-        #                                                    predict_proba(
-        #                                                        data[chosen_features_dict[0]])[:, 1])
-        #     # predict y hat from T learner
-        #     y0_hat = chosen_outcome_model_name_dict[0][chosen_outcome_model_name].predict(
-        #         data[chosen_features_dict[0]])
-        #     y1_hat = chosen_outcome_model_name_dict[1][chosen_outcome_model_name].predict(
-        #         data[chosen_features_dict[1]])
-        #
-        # elif causal_learner_type == "rlearner":
-        #     # predict Rlearner CATE train
-        #     cate_df = \
-        #         rlearner_obj.predict_rlearner(
-        #             X=data[[x for x in top_outcome_shap_features if x != treatment_name]])
-        #     cate_df = pd.DataFrame(data=cate_df)
-        #     # predict potential outcomes # TODO: understand how the effect() method works to predict y among cv folds models
-        #     #  - probably predict from model that data point was in validation fold
-        #     y0_hat = rlearner_obj.GridSearchCV_R_est.models_y[0][0].predict(
-        #         data[[x for x in top_outcome_shap_features if x != treatment_name]])
-        #     y1_hat = y0_hat  # TODO: understand how to extract a corrected E[Y|X] as the Rlearner uses it...
-        #
-        # elif causal_learner_type == "xlearner":
-        #
-        #     # predict Xlearner CATE train
-        #     cate_df = \
-        #         xlearner_obj.predict_xlearner(
-        #             X=data[[x for x in top_outcome_shap_features if x != treatment_name]])
-        #     cate_df = pd.DataFrame(data=cate_df)
-        #     # predict potential outcomes
-        #     # TODO: understand how the effect() method works to predict y among cv folds models
-        #     #  - probably predict from model that data point was in validation fold
-        #     y0_hat = xlearner_obj.x_est.models[0].predict(
-        #         data[[x for x in top_outcome_shap_features if x != treatment_name]])
-        #     y1_hat = xlearner_obj.x_est.models[1].predict(
-        #         data[[x for x in top_outcome_shap_features if x != treatment_name]])
-        #
-        # else:
-        #     raise NotImplementedError
-
-        log.info("--------SAVE CATE DF")
-        cate_df.index = data.index
-        policy_learner = self.calc_policy(cate_df=cate_df)
-
-        return cate_df, policy_learner, y0_hat, y1_hat
-
-
-if __name__ == '__main__':
-
-    cate_df = 2*np.random.random_sample((20, 3))-1
-
-    policy_creat_obj = PolicyCreation(outcome_is_cost=False)
-    policy_creat_obj.set_policy_type(0)
-    maj_policy = policy_creat_obj.calc_policy(cate_df=cate_df)
-
-    policy_creat_obj.set_policy_type(4)
-    avg_policy = policy_creat_obj.calc_policy(cate_df=cate_df)
-    log.info("ok")

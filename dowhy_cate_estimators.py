@@ -224,27 +224,6 @@ def run_dowhy_examples():
     print(Xlearner_estimate.estimator.estimator.cate_controls_models)
     print(Xlearner_estimate.estimator.estimator.cate_treated_models)
 
-    # #: TODO DEBUG Rlearner AttributeError: Cannot use this method with X=None. Consider using the LinearDML estimator.
-    # # TODO: check difference with econml.dml._rlearner._RLearner
-    # print("--------------- Rlearner: NonParamDML")
-    # Rlearner_estimate = model.estimate_effect(identified_estimand,
-    #                                      method_name="backdoor.econml.dml.NonParamDML",
-    #                                      target_units="ate",
-    #                                      confidence_intervals=False,
-    #                                      method_params={"init_params":
-    #                                                         {'model_y': GradientBoostingRegressor(),
-    #                                                          'model_t': GradientBoostingRegressor(),
-    #                                                          'model_final': GradientBoostingRegressor()
-    #                                                          },
-    #                                                     "fit_params": {}
-    #                                                     })
-    # print(Rlearner_estimate)
-    # print(Rlearner_estimate.cate_estimates)
-    # print(Rlearner_estimate.estimator.estimator)
-    # print(Rlearner_estimate.estimator.estimator.models_t)
-    # print(Rlearner_estimate.estimator.estimator.models_y)
-    # print(Rlearner_estimate.estimator.estimator.model_cate)
-
     print("--------------- DML")
     dml_estimate = model.estimate_effect(identified_estimand,
                                          method_name="backdoor.econml.dml.DML",

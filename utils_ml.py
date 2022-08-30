@@ -19,7 +19,7 @@ from sklearn.metrics import brier_score_loss, precision_score, recall_score, f1_
 from sklearn.utils import resample
 from econml.dml import NonParamDML
 from econml.metalearners import XLearner
-# from skfeature.function.information_theoretical_based.CMIM import cmim
+from skfeature.function.information_theoretical_based.CMIM import cmim
 from boruta import BorutaPy
 from BorutaShap import BorutaShap
 import shap
@@ -31,7 +31,8 @@ import joblib
 from builtins import any as b_any
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from yellowbrick.classifier import DiscriminationThreshold
-from utils import time_print
+from causalnex.plots import plot_structure, NODE_STYLE, EDGE_STYLE
+from IPython.display import Image
 
 
 # A logger for this file
@@ -50,7 +51,6 @@ def ks_test(sample1, sample2, alternative: str = "two-sided"):
 
 def t_test(sample1, sample2, alternative: str = "two-sided", permutations=None):
     print("T-test")
-    # rng = np.random.default_rng()
     result = stats.ttest_ind(sample1, sample2)  #, permutations=10000, random_state=rng)
     print("statistic: {}".format(result[0].round(4)))
     print("pvalue: {}".format(result[1].round(4)))
@@ -62,15 +62,15 @@ def feature_selection(x, y, col_names_list: list, method: str, arg_dict: dict = 
                       outcome="binary"):
 
     if method == "boruta":
-        time_print("Starting boruta feature selection on data shape: {}".format(x.shape))
+        log.info("Starting boruta feature selection on data shape: {}".format(x.shape))
 
         # define random forest classifier, with utilising all cores and
         # sampling in proportion to y labels
         if outcome == "binary":
-            ml = RandomForestClassifier(n_jobs=-1, random_state=42, **arg_dict)# max_depth=4, n_estimators=100, criterion='gini')
+            ml = RandomForestClassifier(n_jobs=-1, random_state=42, **arg_dict)
         elif outcome == "multiclass":
             ml = RandomForestClassifier(n_jobs=-1, max_depth=5, n_estimators=200,
-                                        random_state=42, criterion='entropy')  # objective="multi:softmax",
+                                        random_state=42, criterion='entropy')
         elif outcome == "reg":
             ml = RandomForestRegressor(n_jobs=-1, max_depth=5, n_estimators=200, random_state=42)
 
@@ -153,11 +153,11 @@ def feature_selection(x, y, col_names_list: list, method: str, arg_dict: dict = 
 def remove_corr_features(data: pd.DataFrame, corr_thresh=0.95):
 
     # remove highly Pearson correlated features
-    time_print("Start with data shape {}".format(data.shape))
+    log.info("Start with data shape {}".format(data.shape))
     data_corr_matrix = data.corr().abs()
     upper_tri = data_corr_matrix.where(np.triu(np.ones(data_corr_matrix.shape), k=1).astype(bool))
     corr_ftrs_to_drop = [column for column in upper_tri.columns if any(upper_tri[column] > corr_thresh)]
-    time_print("{} highly correlated features: {}".format(len(corr_ftrs_to_drop), corr_ftrs_to_drop))
+    log.info("{} highly correlated features: {}".format(len(corr_ftrs_to_drop), corr_ftrs_to_drop))
     return corr_ftrs_to_drop
 
 
@@ -210,11 +210,7 @@ def binary_clf_eval(model, data, chosen_ftrs, outcome_name, model_name, dataset,
     plt.ioff()
     plt.savefig(os.path.join(path, "{} {} {}".format("CDF", model_name, dataset)+".png"))#, bbox_inches='tight', pad_inches=1)
     plt.close()
-    # plot_calibration_curve(clf_dict={model_name: model},
-    #                        X=data[chosen_ftrs],
-    #                        y=data[outcome_name],
-    #                        title=dataset,
-    #                        path=path)
+
     return eval_dict
 
 
@@ -375,74 +371,12 @@ def nested_k_fold(X, y, model, score_name, score, greater_is_better, model_name,
     return final_model, outer_cv_results_df, outer_cv_performance_df
 
 
-def k_fold(X, y, model, space, score_name, score, greater_is_better, model_name, folds_num=5):
-
-    """
-     CV
-    :param X:
-    :param y:
-    :param model: model object
-    :param score_name: string of scoring metric
-    :param score: score_name metric object
-    :param model_name: model type name
-    :param folds_num: number of train splits to train/test for stratified KFold model selection
-    :return:
-    """
-
-    cv = StratifiedKFold(n_splits=folds_num, shuffle=True, random_state=42)
-    cv_results_df = pd.DataFrame(columns=["score_name", "score", "model_name", "model"])
-    cv_test_scores_list = list()
-
-    for cv_idx, (train_ix, test_ix) in enumerate(cv.split(X=X, y=y), 1):
-
-        time_print("running {} iteration of cv loop".format(cv_idx))
-
-        # split data
-        X_train, X_test = X.values[train_ix, :], X.values[test_ix, :]
-        y_train, y_test = y.values[train_ix], y.values[test_ix]
-
-        model.fit(X_train, y_train)
-
-        # evaluate model on the hold out
-        y_score = model.predict_proba(X=X_test)[:, 1]
-        y_pred = model.predict(X=X_test)
-        score_val = round(score(y_test, y_score), 2)
-
-        outer_cv_test_scores_dict = evaluate_clf(y=y_test, y_hat=y_pred, y_score=y_score, print_scores=False)
-        cv_test_scores_list.append(outer_cv_test_scores_dict)
-
-        # store the result
-        res_df = pd.DataFrame(data=[[score_name, score_val, model_name, model]],
-                              columns=["score_name", "score", "model_name", "model"])
-        cv_results_df = cv_results_df.append(res_df, ignore_index=True)
-
-    # summarize the estimated performance of the model by the outer cv
-    time_print('Performance on outer CV')
-    time_print('{}: mean: {}, std: {}'.format(score_name, round(cv_results_df.loc[:, "score"].mean(), 2),
-                                                          round(cv_results_df.loc[:, "score"].std(), 2)))
-    # Merge outer cv performance dicts
-    cv_test_scores_dict = dict()
-    for sub in cv_test_scores_list:
-        for key, val in sub.items():
-            cv_test_scores_dict.setdefault(key, []).append(val)
-    cv_performance_df = pd.DataFrame.from_dict(cv_test_scores_dict).mean()
-    time_print("outer CV {} results:".format(model_name))
-    print(cv_performance_df)
-    time_print("Observe if performance is stable across outer CV folds and best params are stable? "
-               "if so choose final model:")
-
-    # fit on all train
-    model.fit(X, y)
-
-    return model, cv_results_df, cv_performance_df
-
-
 def run_causalnex(discover_data, file_name, label, color_nodes_name_dict, default_plot=False):
     # TODO: CLEAN
-    time_print("Starting causal graph discovery with causalnex on data shape: {}".format(discover_data.shape))
+    log.info("Starting causal graph discovery with causalnex on data shape: {}".format(discover_data.shape))
     # causalnex graph
     sm = from_pandas(discover_data, max_iter=100000)
-    time_print("Finish causal graph discovery with causalnex on data shape: {}".format(discover_data.shape))
+    log.info("Finish causal graph discovery with causalnex on data shape: {}".format(discover_data.shape))
     sm.remove_edges_below_threshold(0.5)
 
     graph_attributes = {
@@ -461,9 +395,7 @@ def run_causalnex(discover_data, file_name, label, color_nodes_name_dict, defaul
         "nodesep": 0.8,
         "ranksep": ".5 equally",
     }
-    # graph_attributes["nodesep"] = 2
-    # graph_attributes["ranksep"] = "1.1 equally"
-    # Making all nodes hexagonal with black coloring
+
     node_attributes = {
         node: {
             "shape": "hexagon",
@@ -505,45 +437,27 @@ def run_causalnex(discover_data, file_name, label, color_nodes_name_dict, defaul
         for u, v, w in sm.edges(data="weight")
     }
 
-    # if default_plot:
-    #     viz = plot_structure(
-    #         sm,
-    #         graph_attributes={"scale": "0.5"},
-    #         all_node_attributes=NODE_STYLE.WEAK,
-    #         all_edge_attributes=EDGE_STYLE.WEAK)
-    #     Image(viz.draw(format='png'))
-    # else:
-    #     viz = plot_structure(
-    #         sm,
-    #         prog="dot",
-    #         graph_attributes=graph_attributes,
-    #         node_attributes=node_attributes,
-    #         edge_attributes=edge_attributes
-    #         )
+    if default_plot:
+        viz = plot_structure(
+            sm,
+            graph_attributes={"scale": "0.5"},
+            all_node_attributes=NODE_STYLE.WEAK,
+            all_edge_attributes=EDGE_STYLE.WEAK)
+        Image(viz.draw(format='png'))
+    else:
+        viz = plot_structure(
+            sm,
+            prog="dot",
+            graph_attributes=graph_attributes,
+            node_attributes=node_attributes,
+            edge_attributes=edge_attributes
+            )
+    joblib.dump(Image(viz.draw(format='jpg',  prog="circo")), os.path.join(file_name, "causal_graph_image.pkl"))
 
-    # joblib.dump(Image(viz.draw(format='jpg',  prog="circo")), os.path.join(file_name, "causal_graph_image.pkl"))
     joblib.dump(sm, os.path.join(file_name, "causal_graph_obj.pkl"))
     joblib.dump(graph_attributes, os.path.join(file_name, "graph_attributes.pkl"))
     joblib.dump(node_attributes, os.path.join(file_name, "node_attributes.pkl"))
     joblib.dump(edge_attributes, os.path.join(file_name, "edge_attributes.pkl"))
-
-    # cdt graph # TODO: install R dependencies
-    # glasso = cdt.independence.graph.Glasso()
-    # skeleton = glasso.predict(discover_data)
-    # print(skeleton)
-    # remove indirect links in the graph using the Aracne algorithm
-    # new_skeleton = cdt.utils.graph.remove_indirect_links(skeleton, alg='aracne')
-    # print(nx.adjacency_matrix(new_skeleton).todense())
-    # GES algorithm
-    # model = cdt.causality.graph.GES()
-    # output_graph = model.predict(discover_data, new_skeleton)
-    # print(nx.adjacency_matrix(output_graph).todense())
-    # scores = [metric(graph, output_graph) for metric in (precision_recall, SID, SHD)]
-    # now we compute the CAM graph without constraints and the associated scores
-    # model2 = cdt.causality.graph.CAM()
-    # output_graph_nc = model2.predict(discover_data)
-    # scores_nc = [metric(graph, output_graph_nc) for metric in (precision_recall, SID, SHD)]
-    # print(scores_nc)
 
     return sm
 
@@ -565,29 +479,17 @@ class EconmlRlearner():
         cv_clf_space = lambda: GridSearchCV(
             estimator=lgbm.LGBMClassifier(objective="binary",  # early_stopping_rounds=15,
                                           random_state=500, silent=True, n_jobs=4),
-            # GradientBoostingClassifier(validation_fraction=0.12, n_iter_no_change=10, tol=0.001)
             param_grid=lgbm_space,
-            # param_grid={
-            #     'max_depth': [3, 4, 5],
-            #     'n_estimators': [30, 40, 50, 60]},
             cv=strf_cv, n_jobs=-1, scoring=make_scorer(score, greater_is_better=greater_is_better)
             , refit=True
         )
 
-                 # "fit_params": {'categorical_feature': categorical_names_list}}
-
         cv_reg_space = lambda: GridSearchCV(
             estimator=lgbm.LGBMRegressor(random_state=500, silent=True, n_jobs=4),
-            # GradientBoostingRegressor(validation_fraction=0.2, n_iter_no_change=10, tol=0.001),
             param_grid=lgbm_space
-            # {
-            #     'max_depth': [3, 4, 5],
-            #     'n_estimators': [30, 40, 50, 60],}
             , cv=outer_fold_num, n_jobs=-1, scoring='neg_root_mean_squared_error'
             , refit=True
         )
-        # cv_reg_space = GradientBoostingRegressor(max_depth=3, n_estimators=50)
-
         self.GridSearchCV_R_est = NonParamDML(model_y=cv_clf_space(),
                                               model_t=cv_clf_space(),
                                               model_final=cv_reg_space(),
@@ -617,23 +519,14 @@ class EconMlXlearner():
         cv_clf_space = lambda: GridSearchCV(
             estimator=lgbm.LGBMClassifier(objective="binary",  # early_stopping_rounds=15,
                                           random_state=500, silent=True, n_jobs=4),
-            # GradientBoostingClassifier(validation_fraction=0.12, n_iter_no_change=10, tol=0.001)
             param_grid=lgbm_space
-            # param_grid={
-            #     'max_depth': [3, 4, 5],
-            #     'n_estimators': [30, 40, 50, 60]},
         , cv=strf_cv, n_jobs=-1, scoring=make_scorer(score, greater_is_better=greater_is_better)
             , refit=True
         )
 
         cv_reg_space = lambda: GridSearchCV(
             estimator=lgbm.LGBMRegressor(random_state=500, silent=True, n_jobs=4),
-            # GradientBoostingRegressor(validation_fraction=0.2, n_iter_no_change=10, tol=0.001),
             param_grid=lgbm_space
-            # {
-            #     'max_depth': [3, 4, 5],
-            #     'n_estimators': [30, 40, 50, 60, 70],
-            # }
             , cv=outer_fold_num, n_jobs=-1, scoring='neg_root_mean_squared_error'
             , refit=True)
 
@@ -656,17 +549,13 @@ def sigmoid_calib(y, y_score):
     Args:
         y: the target variable
         y_score: the prediction
-
-
-    Returns:
-
     """
     a, b = _sigmoid_calibration(y_score, y)
     return expit(-(a * y_score + b))
 
 
-def regression_importance(data: pd.DataFrame, outcome: pd.DataFrame,
-                                   feature_names: list, file_name: str, path: str, outcome_type: str = "binary"):
+def regression_importance(data: pd.DataFrame, outcome: pd.DataFrame, feature_names: list, file_name: str, path: str,
+                          outcome_type: str = "binary"):
 
     if outcome_type == "binary":
         lr = LogisticRegression(C=10, penalty='l2', solver="liblinear")
@@ -689,22 +578,6 @@ def regression_importance(data: pd.DataFrame, outcome: pd.DataFrame,
         ascending=False).index).round(2)
     print(result)
     result.to_csv(os.path.join(path, "{}.csv".format(file_name)))
-
-    # shap_explainer = shap.LinearExplainer(model=lr_explain, data=chosen_nsclc_mortality_df[all_chosen_features],
-    #                                       masker=shap.TabularMasker(chosen_nsclc_mortality_df[all_chosen_features],
-    #                                                                 hclustering="correlation"))
-    # shap_values = shap_explainer.shap_values(chosen_nsclc_mortality_df[all_chosen_features])
-    # shap.summary_plot(shap_values, chosen_nsclc_mortality_df[all_chosen_features],
-    #                   color=plt.get_cmap("cool"), show=False)
-    #
-    # plt.title(plt_title)
-    # shap.plots.beeswarm(shap_values,
-    #                     color=plt.get_cmap("cool"), show=False)
-    # plt.tight_layout()
-    # plt.ioff()
-    # plt.savefig(plt_title + "_feature_importance.png")  # , bbox_inches='tight', pad_inches=1)
-    # # plt.show()
-    # plt.close()
 
     return
 
@@ -820,16 +693,6 @@ def get_binary_classifier_models_dict(clf_name_list: list, categorical_names_lis
     lgbm_space['n_estimators'] = [20, 30, 40, 50, 70, 150, 200, 500]
     lgbm_space['min_data_in_leaf'] = [10, 20, 30, 50, 100]
     lgbm_space['max_depth'] = [3, 4, 5, 6, 7]
-
-    # lgbm_space['max_bin'] = [255, 510]  # large max_bin helps improve accuracy but might slow down training progress
-    # lgbm_space['num_leaves'] = [6, 8, 12, 16]  # large num_leaves helps improve accuracy but might lead to over-fitting
-    # lgbm_space['boosting_type']= ['gbdt', 'dart']  # for better accuracy -> try dart
-    # lgbm_space['objective']= ['binary']
-    # lgbm_space['colsample_bytree']= [0.64, 0.65, 0.66]
-    # lgbm_space['subsample']=[0.7, 0.75]
-    # lgbm_space['reg_alpha']=[1, 1.2]
-    # lgbm_space['reg_lambda']=[1, 1.2, 1.4]
-    # lgbm_space['early_stopping_rounds'] = [15]
 
     space_log_reg = dict()
     space_log_reg["C"] = [0.001, 0.009, 0.01, 0.09, 1, 5, 10, 25]

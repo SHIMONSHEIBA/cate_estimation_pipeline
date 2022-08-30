@@ -26,7 +26,6 @@ def plot_boxplot(x, y, data, title, path_file, hue=None, y_label=None):
                                y=y,
                                hue=hue,
                                data=data)
-    # .pivot_table(columns="policy", values='sdr_value', index='i')
     boxplot_test.set_title(title)
     if y_label:
         boxplot_test.set_ylabel(y_label)
@@ -94,8 +93,9 @@ def weighted_kaplan_meier(dfs_to_plot_dict: dict, title: str, time_col: str, eve
                 # stabilizied version of IPW weighs - normalize by agreement set sum weights
                 if df_dict["df_weight_col"] is not None and stabilized:
                     group_df[df_dict["df_weight_col"]] = group_df[df_dict["df_weight_col"]] * \
-                                                         (group_df[df_dict["df_weight_col"]].sum()/group_df.shape[0]) # marginal probability of actual treatment
+                                                         (group_df[df_dict["df_weight_col"]].sum()/group_df.shape[0])
                     # TODO: split the marginal probability of actual treatment per arm and make sure which n is right
+                    # marginal probability of actual treatment
 
                 kmf = KaplanMeierFitter()
                 kmf.fit(group_df[time_col],
@@ -111,14 +111,8 @@ def weighted_kaplan_meier(dfs_to_plot_dict: dict, title: str, time_col: str, eve
                                                                                   kmf.median_survival_time_,
                                                                                   median_ci))
                 rmst_exp = restricted_mean_survival_time(kmf, t=x_lim_tuple[1])
-                # print("restricted_mean_survival_time: {}".format(rmst_exp))
-                # results = logrank_test(T, T1, event_observed_A=E, event_observed_B=E1)
-                # results.print_summary()
-                # cph = CoxPHFitter()
-                # cph.fit(group_df, time_col, event_col,
-                #         weights_col=df_dict["df_weight_col"],
-                #         robust=True if df_dict["df_weight_col"] is not None else False)
-                # cph.print_summary()
+                print("restricted_mean_survival_time: {}".format(rmst_exp))
+
         else:
 
             # stabilizied version of IPW weighs - normalize by agreement set sum weights
@@ -140,15 +134,6 @@ def weighted_kaplan_meier(dfs_to_plot_dict: dict, title: str, time_col: str, eve
                                                                   median_ci))
             rmst_exp = restricted_mean_survival_time(kmf, t=x_lim_tuple[1])
             print("restricted_mean_survival_time: {}".format(rmst_exp))
-            # cph = CoxPHFitter()
-            # if df_dict["df_weight_col"]:
-            #     cph_df = df_dict["df"][[time_col, event_col, df_dict["df_weight_col"]]]
-            # else:
-            #     cph_df = df_dict["df"][[time_col, event_col]]
-            # cph.fit(cph_df, time_col, event_col,
-            #         weights_col=df_dict["df_weight_col"],
-            #         robust=True if df_dict["df_weight_col"] is not None else False)
-            # cph.print_summary()
 
     # add counts
     if add_counts:
@@ -272,7 +257,6 @@ def plot_calibration_curve(clf_dict: dict, X, y, title, path):
 
     plt.title(title)
     plt.tight_layout()
-    # plt.show()
     plt.ioff()
     plt.savefig(os.path.join(path, title + ".png"))  # , bbox_inches='tight', pad_inches=1)
     plt.close()
@@ -326,7 +310,6 @@ def shap_feature_importance(shap_values, title, path, order_max=False, max_displ
     plt.tight_layout()
     plt.ioff()
     plt.savefig(os.path.join(path, plt_title + "_feature_importance.png"))  # , bbox_inches='tight', pad_inches=1)
-    # plt.show()
     plt.close()
 
 
@@ -347,7 +330,7 @@ def shap_features_interaction(model, data, title, path, max_display=15):
     shap.summary_plot(shap_interaction, data, show=False, max_display=max_display)
     plt.tight_layout()
     plt.ioff()
-    plt.savefig(os.path.join(path, plt_title + "_features_interaction.png"))  # , bbox_inches='tight', pad_inches=1)
+    plt.savefig(os.path.join(path, plt_title + "_features_interaction.png"))
     plt.close()
 
 
@@ -366,110 +349,14 @@ def shap_dependence_plots(model, data, ftr_1, ftr_2, path, title):
     plt.close()
 
 
-def pie_chart_tlines(pid, treatment_col_name, cohort_therapy_lines_df, path, adv_cohort_col_name, adv_cohort_val):
-
-    # keep only top 10 original 1line
-    cohort_therapy_lines_df_top_10 = cohort_therapy_lines_df.loc[cohort_therapy_lines_df[treatment_col_name].isin(
-        cohort_therapy_lines_df.query("({} == '{}') & (linenumber == 1) & (ismaintenancetherapy == False)".format(
-            adv_cohort_col_name, adv_cohort_val)).groupby([treatment_col_name])[pid].nunique().sort_values(
-            ascending=False).head(10).index)]
-
-    cohort_therapy_lines_df_top_10.query(
-        "({} == '{}') & (linenumber.isin([1, 2])) & (ismaintenancetherapy == False)".format(
-            adv_cohort_col_name, adv_cohort_val)).to_csv(
-        os.path.join(path, "nsclc_1_2_therapy_lines_df_of_top10_1lines_{}.csv".format(adv_cohort_val)))
-
-    # get top 10 1line count patients df
-    top10_1line_count_df = cohort_therapy_lines_df_top_10.query(
-        "({} == '{}') & (linenumber == 1) & "
-        "(ismaintenancetherapy == False)".format(adv_cohort_col_name,
-                                                 adv_cohort_val)).groupby([treatment_col_name])[pid].nunique().sort_values(
-        ascending=False).head(10).reset_index()
-    # get top 10 1line patients ids
-    top10_1line_pid_dict = cohort_therapy_lines_df_top_10.query(
-        "({} == '{}') & (linenumber == 1) & "
-        "(ismaintenancetherapy == False) ".format(adv_cohort_col_name, adv_cohort_val)).groupby(
-        [treatment_col_name])[pid].unique().to_dict()
-    top10_1line_pid_dict = {key: top10_1line_pid_dict[key] for key in top10_1line_count_df[treatment_col_name].unique()}
-    cur_df_list = list()
-    for key, pid_list in top10_1line_pid_dict.items():  # get top 5 2line for all the top 10 1line
-        cur_df = cohort_therapy_lines_df_top_10.query(
-            "({} == '{}') & (linenumber == 2) & "
-            "(ismaintenancetherapy == False) "
-            "& ({}.isin({}))".format(adv_cohort_col_name, adv_cohort_val, pid, list(pid_list))).groupby(
-            [treatment_col_name])[pid].nunique().sort_values(
-            ascending=False).head(5).reset_index()
-        cur_df["1line"] = key
-        first_line_cnt = top10_1line_count_df.query("{} == '{}'".format(treatment_col_name, key))[pid].item()
-        cur_df["1line_count"] = first_line_cnt
-        cur_df.rename({pid: "2line_count", treatment_col_name: "2line"}, axis=1, inplace=True)
-        # add the rest of 1line that are not in 2line
-        cur_df = cur_df.append(pd.DataFrame(data=[["None", first_line_cnt - cur_df["2line_count"].sum(),
-                                                   key, first_line_cnt]],
-                                            columns=["2line", "2line_count", "1line", "1line_count"]))
-        cur_df_list.append(cur_df)
-    pie_df = pd.concat(cur_df_list)
-    pie_df.to_csv(os.path.join(path, "top10_first_and_their_top5_second_lines_{}.csv".format(adv_cohort_val)))
-    labels = pie_df[['1line', '1line_count']].drop_duplicates()['1line'].values
-    sizes = pie_df[['1line', '1line_count']].drop_duplicates()['1line_count'].values
-    # get colors
-    all_labels = list(set(pie_df['2line'].unique()).union(labels))
-    cmap = plt.get_cmap('tab20c')
-    colors = cmap(np.linspace(0, 1, len(all_labels)))
-    colors_dict = dict(zip(all_labels, colors))
-    colors_dict["None"] = '#FFFFFF'
-    bigger_colors = [colors_dict[x] for x in labels]
-    small_colors = [colors_dict[x] for x in pie_df['2line'].values]
-    plt.figure(figsize=(20, 15))
-
-    # func to calc wedges real number
-    def abs_val_bigger(val):
-        a = int(np.round(val / 100. * sizes.sum(), 0))
-        return a
-
-    def abs_val_smaller(val):
-        a = int(np.round(val / 100. * pie_df['2line_count'].values.sum(), 0))
-        return a
-
-    # plot pies
-    size = 0.3
-    bigger = plt.pie(sizes, labels=labels, colors=bigger_colors,
-                     autopct=abs_val_bigger,
-                     pctdistance=1.2,
-                     radius=1, #startangle=90, radius=0.6,
-                     textprops={'fontsize': 22}, wedgeprops=dict(width=size, edgecolor='w'))
-    smaller = plt.pie(pie_df['2line_count'].values,
-                      # labels=pie_df['2line'].values,
-                      autopct=abs_val_smaller,
-                      pctdistance=1.2,
-                      colors=small_colors, radius=1-size,  # radius=0.5, startangle=90,
-                      textprops={'fontsize': 14}, wedgeprops=dict(width=size, edgecolor='w'))  # labeldistance=None
-
-    # centre_circle = plt.Circle((0, 0), 0.2, color='white', linewidth=0)
-    # fig = plt.gcf()
-    # fig.gca().add_artist(centre_circle)
-
-    plt.axis('equal')
-    # custom legend
-    l_handles, l_labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(l_labels, l_handles))
-    plt.legend(by_label.values(), by_label.keys(), fontsize=13, loc="lower right", bbox_to_anchor=(1, 0),
-               bbox_transform=plt.gcf().transFigure)
-    plt.tight_layout()
-    # plt.suptitle("{} Top First & Second Treatment Lines".format(adv_cohort_val))
-    plt.savefig(os.path.join(path, "tlines_pie.png"), bbox_inches="tight")
-    plt.close()
-    return
-
-
 def plot_cates(cate_x_axis: pd.DataFrame, cate_y_axis: pd.DataFrame, title: str, path: str, is_probability=True):
     """
-    scatterplot two CATE for same patients - assuming index is patients id, colors by sum of CATE
+    scatterplot two CATE for same patients - assuming index is data point key, colors by sum of CATE
     :param cate_x_axis:
     :param cate_y_axis:sc
     :param title:
     :param path:
-    :param is_probability: indicator wethear cate between Y of probability, then axis are between -1 to 1
+    :param is_probability: indicator weather cate between Y of probability, then axis are between -1 to 1
     :return:
     """
     plt.close()

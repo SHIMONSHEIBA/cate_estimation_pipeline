@@ -5,7 +5,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from utils_ml import EconmlRlearner, EconMlXlearner, nested_k_fold, binary_clf_eval
-from utils import time_print
 from utils_graphs import plot_calibration_curve, live_scatter, shap_feature_importance
 import logging
 
@@ -75,7 +74,7 @@ def temp_outcome_modeling(causal_learner_type, train_data, test_data, all_chosen
             # dict of chosen outcome models
             chosen_outcome_model_name_dict = defaultdict(dict)
             # -- choose ML outcome model
-            time_print("training outcome models for causal learner: {}".format(causal_learner))
+            log.info("training outcome models for causal learner: {}".format(causal_learner))
             outcome_models_dict = {}
             outcome_models_cv_results_df = pd.DataFrame(columns=["params", "score_name", "score", "model_name", "model",
                                                                  "dataset"])
@@ -206,10 +205,7 @@ def temp_outcome_modeling(causal_learner_type, train_data, test_data, all_chosen
                 shap_feature_importance(shap_values=shap_values_test_outcome,
                                         title="T {} Test outcome {} ".format(arm, arm_chosen_outcome_model_name),
                                         order_max=False, path=outcome_path)
-    
-                # shap_feature_importance(shap_values=shap_values_train_outcome,
-                #                         title="T {} Train outcome {} ".format(arm, arm_chosen_outcome_model_name),
-                #                         order_max=True, path=outcome_path)
+
                 # Local level
                 data_point_id_iloc_to_explain = 5
                 shap.plots.force(shap_values_train_outcome[data_point_id_iloc_to_explain],

@@ -3,7 +3,6 @@ from utils_ml import evaluate_clf, nested_k_fold, binary_clf_eval
 from utils_graphs import plot_calibration_curve, plot_ecdf, shap_feature_importance, live_scatter
 import seaborn as sns
 import matplotlib.pyplot as plt
-from utils import time_print
 import os
 import shap
 import joblib
@@ -38,9 +37,9 @@ class PropensityModel:
 
     def fit(self, X, y, sample_weight=None):
 
-        time_print("Start fitting propensity model {}".format(self.propensity_model_name))
+        log.info("Start fitting propensity model {}".format(self.propensity_model_name))
         self.propensity_model = self.propensity_model.fit(X, y, sample_weight=sample_weight)
-        time_print("Finish fitting propensity model {}".format(self.propensity_model_name))
+        log.info("Finish fitting propensity model {}".format(self.propensity_model_name))
 
     def get_predict(self, X):
         return self.propensity_model.predict(X)
@@ -135,9 +134,8 @@ class PropensityModel:
 
         pd.concat(model_performance_df_list).to_csv(
             os.path.join(modeling_path, "propensity_models_model_performance_df.csv"))
-        # show and save all models performance in order to pick the most stable one
-        # print("Nested CV Results of propensity models:")
-        # print(propensity_models_cv_results_df)
+
+        # save all models performance in order to pick the most stable model type
         propensity_models_cv_results_df.to_csv(os.path.join(modeling_path, "propensity_models_cv_results_df.csv"))
 
         # calibration curves for all models
@@ -174,10 +172,6 @@ class PropensityModel:
         shap_feature_importance(shap_values=shap_values_train_propensity,
                                 title="Train propensity {} ".format(chosen_propensity_model_name),
                                 order_max=False, path=modeling_path)
-
-        # shap_feature_importance(shap_values=shap_values_train_propensity,
-        #                         title="Train propensity {} ".format(chosen_propensity_model_name),
-        #                         order_max=True, path=modeling_path)
 
         # Local level - chose data point iloc to explain
         data_point_id_iloc_to_explain = 12

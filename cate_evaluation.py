@@ -110,33 +110,6 @@ class CateEvaluation:
 
         return cate_df_dict
 
-    # def ml_performance(self):
-    #     """
-    #     Prediction performance measurements
-    #     :return:
-    #     """
-    #     return NotImplementedError
-    #
-    # def ml_feature_importance(self):
-    #     """
-    #     :return:
-    #     """
-    #     return NotImplementedError
-    #
-    # def ml_error_distribution(self):
-    #     """
-    #     plot histogram of model error distribution
-    #     :return:
-    #     """
-    #     return NotImplementedError
-    #
-    # def ml_model_logic_analysis(self):
-    #     """
-    #     checks how different feature values affect the model's prediction, to validate with domain experts
-    #     :return:
-    #     """
-    #     return NotImplementedError
-
     def cate_correlations(self, cates_df: pd.DataFrame, dataset):
         """
         checks different correlation measurements between different CATE estimators: Pearson, Spearman, ICC
@@ -258,5 +231,7 @@ class CateEvaluation:
         Characterize in terms of X features the agreement/disagreement populations with current care and between CATEs
         :return:
         """
+
+        return NotImplementedError
 
 

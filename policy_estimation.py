@@ -4,10 +4,7 @@ from collections import defaultdict
 from utils_graphs import weighted_kaplan_meier
 from utils_ml import calc_ipw
 import logging
-# from contextualbandits.online import SeparateClassifiers, BootstrappedUCB
-# from contextualbandits.evaluation import evaluateDoublyRobust, evaluateNCIS, evaluateRejectionSampling
-# import dowhy.datasets
-# from causalis_model import CausalisModel
+
 
 # A logger for this file
 log = logging.getLogger(__name__)
@@ -18,10 +15,6 @@ class PolicyEstimation:
     """
     Class for estimating a binary intervention policy value - supports only binary outcome
     """
-    # package:
-    # https://nbviewer.jupyter.org/github/david-cortes/contextualbandits/blob/master/example/policy_evaluation.ipynb
-    # paper:
-    # https://arxiv.org/pdf/1103.4601.pdf
 
     def __init__(self):
 
@@ -195,11 +188,6 @@ class PolicyEstimation:
                                treatment0_name=0,
                                stabilized=True)
 
-        # dfs_to_plot_dict = {
-        #     "All cases": {"df": data,
-        #                   "df_group_col": None,
-        #                   "df_weight_col": None},
-        # }
         dfs_to_plot_dict = defaultdict(dict)
 
         for policy_name in policy_names:
