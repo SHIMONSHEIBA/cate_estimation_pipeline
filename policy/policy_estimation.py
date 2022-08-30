@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 from collections import defaultdict
-from utils_graphs import weighted_kaplan_meier
-from utils_ml import calc_ipw
+from utils.utils_graphs import weighted_kaplan_meier
+from utils.utils_ml import calc_ipw
 import logging
 
 

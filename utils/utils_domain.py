@@ -8,7 +8,7 @@ def domain_expert_features_lists(outcome_name: str, treatment0_name, treatment1_
     :param treatment0_name: value of treatment 0 (can be string or number)
     :param treatment1_name: value of treatment 1 (can be string or number)
     :param cur_treatment: arm to return feature list for
-    :return:
+    :return: list of domain expert feature names to manually add after feature selection
     """
 
     domain_expert_features_dict = defaultdict(dict)

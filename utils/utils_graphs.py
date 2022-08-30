@@ -1,13 +1,11 @@
 import pandas as pd
 import numpy as np
-import plotly.express as px
 from sklearn.calibration import calibration_curve
 from lifelines import KaplanMeierFitter
 from lifelines.utils import median_survival_times, restricted_mean_survival_time
 import shap
 import matplotlib.pyplot as plt
 import seaborn as sns
-import json
 import os
 import logging
 import plotly.io as pio
@@ -282,20 +280,7 @@ def plot_ecdf(data, col: str, hue=None, stat=None):
     plt.close()
 
 
-def live_scatter(df, x, y, name, color=None, size=None, hover_data=None, cols_to_string=None):
-    plt.close()
-    if cols_to_string:
-        for col in cols_to_string:
-            df[col] = df[col].apply(lambda x: json.dumps(x))
-    fig = px.scatter(df, x=x, y=y, color=color, size=size, hover_data=hover_data,
-                     title="{} Scatter plot X: {} ~ Y: {} ".format(name, x, y))
-    fig.show()
-    plt.close()
-
-
 def shap_feature_importance(shap_values, title, path, order_max=False, max_display=15):
-    # TODO: for non XGB models ValueError: The beeswarm plot does not support plotting explanations with instances that
-    #  have more than one dimension!
 
     if order_max:
         plt_title = title + " \n SHAP ordered by max absolute value - high impacts for individual"

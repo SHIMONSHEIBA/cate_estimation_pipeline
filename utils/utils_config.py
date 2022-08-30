@@ -57,7 +57,6 @@ class Params:
     outer_fold_num: int
     skip_propensity_trimming: bool
     test_propensity: bool
-    interactive_env: bool
     upsample: bool
     causal_discovery: bool
     d_top_outcome_shap: int

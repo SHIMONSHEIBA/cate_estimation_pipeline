@@ -2,7 +2,7 @@
 Module containing the main class for managing the causal discovery outputs for the Causalis engine
 """
 import pandas as pd
-from utils_ml import run_causalnex
+from utils.utils_ml import run_causalnex
 
 
 class CausalisGraph:

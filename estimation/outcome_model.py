@@ -4,8 +4,8 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from utils_ml import EconmlRlearner, EconMlXlearner, nested_k_fold, binary_clf_eval
-from utils_graphs import plot_calibration_curve, live_scatter, shap_feature_importance
+from utils.utils_ml import EconmlRlearner, EconMlXlearner, nested_k_fold, binary_clf_eval
+from utils.utils_graphs import plot_calibration_curve, shap_feature_importance
 import logging
 
 # A logger for this file
@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 def outcome_modeling(causal_learner_type, train_data, test_data, all_chosen_features,
                      treatment_name, outcome_name, greater_is_better, score, outcome_path, chosen_features_dict,
                      treatment_values_list, binary_classifier_models_dict, outer_fold_num, inner_fold_num,
-                     score_name, upsample, interactive_env):
+                     score_name, upsample):
 
     rlearner_obj = None
     xlearner_obj = None
@@ -157,13 +157,6 @@ def outcome_modeling(causal_learner_type, train_data, test_data, all_chosen_feat
                                        y=test_data[outcome_name],
                                        title="T {} Outcome models {} - Test".format(arm, outcome_name),
                                        path=outcome_path)
-    
-                # show auc in best hyper parameter space
-                if interactive_env:
-                    live_scatter(df=outcome_models_cv_results_df, x="model_name", y="score",
-                                 name="Outcome model: {}".format(outcome_name),
-                                 color="model_name", size="score",
-                                 hover_data=["model_name", "score", "params"], cols_to_string=["params"])
 
                 # TODO: define dynamically
                 # choose best model

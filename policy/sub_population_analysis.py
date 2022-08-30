@@ -1,10 +1,7 @@
-from utils_ml import regression_importance
-from utils_graphs import weighted_kaplan_meier
+from utils.utils_ml import regression_importance
 import os
 import logging
 from sklearn.preprocessing import RobustScaler
-
-from causalis_graph import CausalisGraph
 
 # A logger for this file
 log = logging.getLogger(__name__)

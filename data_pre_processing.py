@@ -11,9 +11,9 @@ import hydra
 import logging
 from hydra.core.config_store import ConfigStore
 from collections import defaultdict
-from utils import save_simulated_data, remove_quantiles
-from utils_config import DataProcessConfig
-from utils_ml import remove_corr_features
+from utils.utils import save_simulated_data, remove_quantiles
+from utils.utils_config import DataProcessConfig
+from utils.utils_ml import remove_corr_features
 
 
 pd.set_option("display.max_rows", 10000)

@@ -24,7 +24,6 @@ params:
     outer_fold_num: 5 #  when nested CV is performed in clf training - model selection outer loop folds
     skip_propensity_trimming: False # flag if to perform propensity based trimming
     test_propensity: True # flag to refit propensity for policy evaluation on test set
-    interactive_env: True # if env allows interactive graphs via http port to show plotly express interactive graphs
     upsample: False # flag for imbalanced data to upsample minority class
     causal_discovery: True # flag to run causal discovery step
     d_top_outcome_shap: 10 # number of features to take from shap ranking in second training phase in outcome model

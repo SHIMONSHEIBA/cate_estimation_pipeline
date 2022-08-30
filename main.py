@@ -6,38 +6,31 @@ import hydra
 from copy import deepcopy
 import logging
 # internal
-from causalis_graph import CausalisGraph
-from propensity_model import PropensityModel
-from outcome_model import outcome_modeling
-from cate_evaluation import CateEvaluation
-from policy_creation import PolicyCreation
-from policy_estimation import PolicyEstimation
-from sub_population_analysis import SubPopulationAnalysis
-from utils_config import CATEconfig
-from utils_ml import feature_selection, sort_features_by_shap_values, get_score_params, \
+from estimation.causalis_graph import CausalisGraph
+from estimation.propensity_model import PropensityModel
+from estimation.outcome_model import outcome_modeling
+from policy.cate_evaluation import CateEvaluation
+from policy.policy_creation import PolicyCreation
+from policy.policy_estimation import PolicyEstimation
+from policy.sub_population_analysis import SubPopulationAnalysis
+from utils.utils_config import CATEconfig
+from utils.utils_ml import feature_selection, sort_features_by_shap_values, get_score_params, \
     get_scaler_params, get_binary_classifier_models_dict, binary_clf_eval
-from utils_domain import domain_expert_features_lists
-from utils_graphs import plot_boxplot
+from utils.utils_domain import domain_expert_features_lists
+from utils.utils_graphs import plot_boxplot
 # display
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 
 
-@hydra.main(config_path="conf", config_name="cate_config.yaml")
-def run_cate_pipeline(cfg: CATEconfig) -> None:
-    """
-    func responsible on all calls of different steps in CATE estimation pipeline
-    """
-
-    log.info("starting experiment on outcome {} with causal meta learners {}".format(cfg.params.outcome_name, 
-                                                                                     cfg.params.causal_learner_type))
+def load_data(cfg):
 
     # load data
     processed_data_obj_list = joblib.load(os.path.join(cfg.paths.data, cfg.files.data_object))
     train_data, test_data, treatment_name, treatment0_name, treatment1_name, confounder_names_list, \
     post_treatment_ftrs, train_impute_numeric_df, categorical_feature_names, cat_cols_mapping_dict \
         = processed_data_obj_list
-    
+
     log.info("train shape: {}".format(train_data.shape))
     log.info("test shape: {}".format(test_data.shape))
 
@@ -51,10 +44,18 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     log.info("{} outcome distribution per {} treatment arm (test):".format(cfg.params.outcome_name, treatment_name))
     log.info(test_data.groupby(treatment_name)[cfg.params.outcome_name].value_counts(dropna=False))
     log.info(train_data[cfg.params.outcome_name].value_counts(dropna=False))
-        
+
     # set score
     score, greater_is_better = get_score_params(cfg.params.score_name)
 
+    return train_data, test_data, treatment_name, treatment0_name, treatment1_name, confounder_names_list, \
+    post_treatment_ftrs, train_impute_numeric_df, categorical_feature_names, cat_cols_mapping_dict, score, \
+           greater_is_better
+
+
+def scale_data(cfg, confounder_names_list, treatment_name, train_data, test_data):
+
+    scaler = None
     # ---------- Scale data ----------
     if cfg.params.scaler_name:
         scaler = get_scaler_params(cfg.params.scaler_name)
@@ -70,6 +71,9 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     joblib.dump(confounder_names_list, "confounder_names_list_t_{}_y_{}.pkl".format(
         treatment_name, cfg.params.outcome_name))
 
+    return scaler, train_data, test_data
+
+def fs(cfg, train_data, treatment_name, confounder_names_list, treatment0_name, treatment1_name):
     # ---------- Feature selection ----------
     # feature selection
     chosen_features_dict = dict()
@@ -134,8 +138,13 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
 
     joblib.dump(chosen_features_dict, "chosen_features_dict_method_{}_t_{}_y_{}.pkl".format(cfg.params.fs_method,
                                                                                             treatment_name,
-                                                                                            cfg.params.outcome_name))
 
+                                                                                            cfg.params.outcome_name))
+    return chosen_features_dict, treatment_values_list
+
+
+def propensity_estimation(cfg, chosen_features_dict, categorical_feature_names, train_data, treatment_name, score,
+                          greater_is_better):
     # ------- ML models estimation ------------
     if cfg.params.mutual_confounders:
         # take only mutual between arms
@@ -166,8 +175,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                      cfg.params.inner_fold_num,
                                                      score,
                                                      cfg.params.score_name,
-                                                     greater_is_better,
-                                                     cfg.params.interactive_env)
+                                                     greater_is_better)
 
     # calc propensity features shap importance
     top_propensity_shap_features = sort_features_by_shap_values(model=propensity_model,
@@ -202,11 +210,13 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                      inner_fold_num=cfg.params.inner_fold_num,
                                                      score=score,
                                                      score_name=cfg.params.score_name,
-                                                     greater_is_better=greater_is_better,
-                                                     interactive_env=cfg.params.interactive_env)
+                                                     greater_is_better=greater_is_better)
 
     joblib.dump(top_propensity_shap_features, "top_propensity_shap_features.pkl".format(treatment_name))
+    return propensity_model, binary_classifier_models_dict, top_propensity_shap_features, all_chosen_features,
 
+
+def propensity_trimming(cfg, train_data, test_data, propensity_model, top_propensity_shap_features, treatment_name):
     # ---------- Propensity score trimming ----------
 
     # check effective sample size per treatment arm in different propensity thresholds
@@ -260,6 +270,13 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
         log.info("keeping all data - no propensity trimming")
         common_support_train_data_ids = train_data.index
         common_support_test_data_ids = test_data.index
+    return train_data, test_data, common_support_train_data_ids, common_support_test_data_ids, \
+           lower_propensity_trimming_thresh, upper_propensity_trimming_thresh, propensity_score_name
+
+
+def outcome_estimation(cfg, categorical_feature_names, all_chosen_features, train_data, test_data, treatment_name,
+                       common_support_train_data_ids, common_support_test_data_ids, greater_is_better, score,
+                       chosen_features_dict, treatment_values_list, top_propensity_shap_features):
 
     # ---------------------- Model outcome --------------------------
     outcome_path = os.path.join(os.getcwd(), 'outcome_models')
@@ -287,8 +304,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                          outer_fold_num=cfg.params.outer_fold_num,
                          inner_fold_num=cfg.params.inner_fold_num,
                          score_name=cfg.params.score_name,
-                         upsample=cfg.params.upsample,
-                         interactive_env=cfg.params.interactive_env)
+                         upsample=cfg.params.upsample)
 
     # to reduce d of y models - take top d_top_outcome_shap features + mandatory features
     top_outcome_y0_shap_features = sort_features_by_shap_values(
@@ -355,10 +371,14 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                          outer_fold_num=cfg.params.outer_fold_num,
                          inner_fold_num=cfg.params.inner_fold_num,
                          score_name=cfg.params.score_name,
-                         upsample=cfg.params.upsample,
-                         interactive_env=cfg.params.interactive_env)
+                         upsample=cfg.params.upsample)
 
-# ----------- Causal Discovery -----------------
+    return binary_classifier_models_dict, chosen_outcome_model_name, chosen_outcome_model_name_dict, \
+           top_outcome_shap_features, chosen_features_dict, rlearner_obj, xlearner_obj
+
+
+def causal_discovery_graph(cfg, top_outcome_shap_features, treatment_name, train_data, common_support_train_data_ids,
+                           treatment0_name, treatment1_name, test_data, common_support_test_data_ids):
     if cfg.params.causal_discovery:
         # run causal discovery
         graph_path = os.path.join(os.getcwd(), 'causal_graph')
@@ -385,7 +405,12 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
         causalis_graph_obj.path = os.path.join(graph_path, "test")
         _ = causalis_graph_obj.run_causalnex_notears()
 
-# ----- Analyze CATE
+
+def cate_analysis(cfg, train_data, common_support_train_data_ids, test_data, common_support_test_data_ids,
+                  treatment_name, chosen_features_dict, chosen_outcome_model_name_dict, chosen_outcome_model_name,
+                  top_outcome_shap_features, rlearner_obj, xlearner_obj):
+
+    # ----- Analyze CATE
     cate_path = os.path.join(os.getcwd(), "CATE")
     os.makedirs(cate_path, exist_ok=True)
 
@@ -445,11 +470,11 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     # calc ATE between CATE methods
     cate_obj.cate_ate_validation(cates_df_train, dataset="TRAIN")
     cate_obj.cate_ate_validation(cates_df_test, dataset="TEST")
+    return cates_df_train, cates_df_test
 
-    # cate_obj.cate_calibration_plots(cates_df)
 
-    # cate_obj.cate_regress_features_on_doubly_robust(cates_df)
-
+def policy_creation(cfg, cates_df_train, train_data, common_support_train_data_ids, treatment_name, cates_df_test,
+                    test_data, common_support_test_data_ids):
     # ----- Create intervention policy
     policy_path = os.path.join(os.getcwd(), "Policy")
     os.makedirs(policy_path, exist_ok=True)
@@ -463,7 +488,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
 
     # add baseline policies
     policies_df_train = policy_create_obj.add_baseline_policies(policies_df=policies_df_train,
-                                                                curr_policy=train_data.loc[common_support_train_data_ids, 
+                                                                curr_policy=train_data.loc[common_support_train_data_ids,
                                                                                            treatment_name].values)
 
     joblib.dump(policies_df_train, os.path.join(policy_path, "policies_df_train.pkl"))
@@ -477,7 +502,12 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                                                          treatment_name].values)
 
     joblib.dump(policies_df_test, os.path.join(policy_path, "policies_df_test.pkl"))
+    return policy_path, policies_df_train, policies_df_test
 
+
+def policy_evaluation(cfg, train_data, common_support_train_data_ids, policies_df_train, chosen_outcome_model_name_dict,
+                      chosen_features_dict, propensity_score_name, treatment_name, policy_path, propensity_model,
+                      test_data, common_support_test_data_ids, top_propensity_shap_features, policies_df_test):
     log.info("Evaluate Policy value")
 
     # evaluate a policy
@@ -544,8 +574,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     sample_data_test["y1_hat"] = \
         chosen_outcome_model_name_dict["y_hat_policy_1"]["GradientBoostingClassifier"].predict_proba(
             test_data.loc[common_support_test_data_ids, chosen_features_dict[1]])[:, 1]
-    # sample_data_test["y0_hat"] = cate_df_dict_test["tlearner"]["y0_hat"]
-    # sample_data_test["y1_hat"] = cate_df_dict_test["tlearner"]["y1_hat"]
+
     # calc policy value
     policy_value_df_test = policy_est_obj.temp_bootstrap_policy_value(sample_data_test, cfg, policies_df_test.columns,
                                                                       propensity_score_name_policy, treatment_name)
@@ -556,26 +585,13 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                  y_label=cfg.params.outcome_name)
     joblib.dump(policy_value_df_test, os.path.join(policy_path, "policy_value_df_test.pkl"))
 
-    # # ----- Evaluate intervention policy - With KM curves
+    return sample_data_train, sample_data_test
+
+
+def sub_pop_analysis(cfg, sample_data_train, sample_data_test, policies_df_train, treatment_name,
+                     top_outcome_shap_features, policy_path):
+    # # ----- Evaluate intervention policy
     chosen_policies = ["xlearner_policy", "current_policy"]  # TODO: make dynamic
-    #
-    # log.info("Policy Evaluation - IPW KM TRAIN")
-    # policy_est_obj.ipw_km(data=sample_data_train,
-    #                       propensity_score_name=propensity_score_name,
-    #                       treatment_name=treatment_name,
-    #                       policy_names=policies_df_train.columns.intersection(chosen_policies),
-    #                       policy_path=policy_path,
-    #                       title="Flatiron NSCLC OS - TRAIN",
-    #                       sipw=False)
-    #
-    # log.info("Policy Evaluation - IPW KM TEST")
-    # policy_est_obj.ipw_km(data=sample_data_test,
-    #                       propensity_score_name=propensity_score_name_policy,
-    #                       treatment_name=treatment_name,
-    #                       policy_names=policies_df_test.columns.intersection(chosen_policies),
-    #                       policy_path=policy_path,
-    #                       title="Flatiron NSCLC OS - TEST",
-    #                       sipw=False)
 
     log.info("Policy Explanation - regress on Policy decision TRAIN")
 
@@ -595,6 +611,68 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     sub_pop_analysis_obj.pop_description = "Trimmed_test"
     sub_pop_analysis_obj.scaler = scaler
     sub_pop_analysis_obj.pop_feature_importance()
+
+
+@hydra.main(config_path="conf", config_name="cate_config.yaml")
+def run_cate_pipeline(cfg: CATEconfig) -> None:
+    """
+    func responsible on all calls of different steps in CATE estimation pipeline
+    """
+
+    log.info("starting experiment on outcome {} with causal meta learners {}".format(cfg.params.outcome_name,
+                                                                                     cfg.params.causal_learner_type))
+    # load data
+    train_data, test_data, treatment_name, treatment0_name, treatment1_name, confounder_names_list, \
+    post_treatment_ftrs, train_impute_numeric_df, categorical_feature_names, cat_cols_mapping_dict, score, \
+    greater_is_better = load_data(cfg)
+
+    # scale data
+    scaler, train_data, test_data = scale_data(cfg, confounder_names_list, treatment_name, train_data, test_data)
+
+    # feature selection
+    chosen_features_dict, treatment_values_list = fs(cfg, train_data, treatment_name, confounder_names_list,
+                                                     treatment0_name, treatment1_name)
+    # propensity estimation
+    propensity_model, binary_classifier_models_dict, top_propensity_shap_features, all_chosen_features = \
+        propensity_estimation(cfg, chosen_features_dict, categorical_feature_names, train_data, treatment_name, score,
+                          greater_is_better)
+
+    # propensity trimming
+    train_data, test_data, common_support_train_data_ids, common_support_test_data_ids, \
+    lower_propensity_trimming_thresh, upper_propensity_trimming_thresh, propensity_score_name = \
+        propensity_trimming(cfg, train_data, test_data, propensity_model, top_propensity_shap_features, treatment_name)
+
+    # outcome modeling
+    binary_classifier_models_dict, chosen_outcome_model_name, chosen_outcome_model_name_dict, \
+    top_outcome_shap_features, chosen_features_dict, rlearner_obj, xlearner_obj = \
+        outcome_estimation(cfg, categorical_feature_names, all_chosen_features, train_data, test_data, treatment_name,
+                       common_support_train_data_ids, common_support_test_data_ids, greater_is_better, score,
+                       chosen_features_dict, treatment_values_list, top_propensity_shap_features)
+
+    # causal discovery
+    causal_discovery_graph(cfg, top_outcome_shap_features, treatment_name, train_data, common_support_train_data_ids,
+                           treatment0_name, treatment1_name, test_data, common_support_test_data_ids)
+
+    # cate analysis
+    cates_df_train, cates_df_test = cate_analysis(cfg, train_data, common_support_train_data_ids, test_data,
+                                                  common_support_test_data_ids,
+                  treatment_name, chosen_features_dict, chosen_outcome_model_name_dict, chosen_outcome_model_name,
+                  top_outcome_shap_features, rlearner_obj, xlearner_obj)
+
+    # policy creation
+    policy_path, policies_df_train, policies_df_test = policy_creation(cfg, cates_df_train, train_data,
+                                                          common_support_train_data_ids, treatment_name, cates_df_test,
+                                                          test_data, common_support_test_data_ids)
+
+    # policy evaluation
+    sample_data_train, sample_data_test = policy_evaluation(cfg, train_data, common_support_train_data_ids,
+                                                            policies_df_train, chosen_outcome_model_name_dict,
+                      chosen_features_dict, propensity_score_name, treatment_name, policy_path, propensity_model,
+                      test_data, common_support_test_data_ids, top_propensity_shap_features, policies_df_test)
+
+    # sub population analysis
+    sub_pop_analysis(cfg, sample_data_train, sample_data_test, policies_df_train, treatment_name,
+                     top_outcome_shap_features, policy_path)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
 import pandas as pd
-from utils_ml import evaluate_clf, nested_k_fold, binary_clf_eval
-from utils_graphs import plot_calibration_curve, plot_ecdf, shap_feature_importance, live_scatter
+from utils.utils_ml import evaluate_clf, nested_k_fold, binary_clf_eval
+from utils.utils_graphs import plot_calibration_curve, plot_ecdf, shap_feature_importance
 import seaborn as sns
 import matplotlib.pyplot as plt
 import os
@@ -85,7 +85,7 @@ class PropensityModel:
     # temp func to clean main - TODO break to class methods
     def fit_prop(self, train_data, treatment_name, modeling_path, all_chosen_features,
                  binary_classifier_models_dict, outer_fold_num,
-                 inner_fold_num, score, score_name, greater_is_better, interactive_env):
+                 inner_fold_num, score, score_name, greater_is_better):
 
         propensity_models_dict = {}
 
@@ -145,17 +145,6 @@ class PropensityModel:
                                y=train_data[treatment_name],
                                title="Propensity models {} - Train".format(treatment_name),
                                path=modeling_path)
-
-        if interactive_env:
-            # show score metric in best hyper parameter space - interactive html graph
-            live_scatter(df=propensity_models_cv_results_df,
-                         x="model_name",
-                         y="score",
-                         name="Propensity model: {}".format(treatment_name),
-                         color="model_name",
-                         size="score",
-                         hover_data=["model_name", "score", "params"],
-                         cols_to_string=["params"])
 
         # choose propensity model # TODO: define dynamically
         chosen_propensity_model_name = "lgbm"
