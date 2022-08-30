@@ -76,6 +76,9 @@ def save_simulated_data() -> None:
         treatment_is_binary=True,
         outcome_is_binary=True)
 
+    # copy a column
+    data_dict["df"]['W00'] = data_dict["df"]['W0']
+
     # add some random missingness between 0 to 10%
     for col in data_dict["df"].columns.difference([data_dict["treatment_name"][0], data_dict["outcome_name"][0]]):
         data_dict["df"].loc[data_dict["df"].sample(frac=round(random.uniform(0.0, 0.1), 2)).index, col] = pd.np.nan
@@ -531,7 +534,8 @@ def remove_sub_list_from_string_list(sub_list: list, string_list: list):
     return string_list_clean
 
 
-def remove_quantiles(df, value_col: str, min_quantile: float = 0.05, max_quantile: float = 0.95):
+def remove_quantiles(df: pd.DataFrame, value_col: str,
+                     min_quantile: float = 0.05, max_quantile: float = 0.95) -> pd.DataFrame:
     """
     keeps rows where value_col is in defined quantile range
     :param df:
@@ -540,11 +544,10 @@ def remove_quantiles(df, value_col: str, min_quantile: float = 0.05, max_quantil
     :param max_quantile:
     :return:
     """
-    # TODO: validate
     min_quantile_value = df[value_col].quantile(min_quantile)
     max_quantile_value = df[value_col].quantile(max_quantile)
 
-    return df.query("{} >= {} & {} <= {}".format(value_col, min_quantile_value, value_col, max_quantile_value))
+    return df[(df[value_col] >= min_quantile_value) & (df[value_col] <= max_quantile_value)]
 
 
 def calc_slope_per_test_date(df, group_col_list: list, time_col: str, value_col: str):

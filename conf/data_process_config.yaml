@@ -9,4 +9,7 @@ params:
      min_test_year: 2020  # if temporal split is chosen: first year of test set
      test_size: 0.2 # if random split is chosen
      impute: True # impute null values: binary with 0, numeric with mode
+     corr_thresh: 0.9 # threshold to remove (one) features with Pearson correlation above it
+     outliers: False # remove outliers
+     outliers_range: [0.01, 0.99] # If outliers True: quantiles range to keep per column
      categorical: cat_codes # type of categorical handling: supports cat_codes / dummy

@@ -106,7 +106,7 @@ class PropensityModel:
                               score=score,
                               score_name=score_name,
                               greater_is_better=greater_is_better,
-                              nested_step=False,
+                              nested_step=True,
                               fit_params=model_dict["fit_params"] if "fit_params" in model_dict.keys() else None)
 
             propensity_models_dict[model_name] = curr_propensity_model
@@ -160,7 +160,7 @@ class PropensityModel:
                          cols_to_string=["params"])
 
         # choose propensity model # TODO: define dynamically
-        chosen_propensity_model_name = "GradientBoostingClassifier"
+        chosen_propensity_model_name = "lgbm"
         log.info("Chosen propensity model: {}".format(chosen_propensity_model_name))
         propensity_model = propensity_models_dict[chosen_propensity_model_name]
 

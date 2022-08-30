@@ -5,67 +5,35 @@ paths:
     log: ./runs
     data: ${hydra:runtime.cwd}
 params:
-    data_model_update_date: '31032022' # '28022022' # ddmmyyyy of data cutoff
-    update_date_buffer_months: 1  # months buffer to take back from data_model_update_date - to avoid false negatives
-    index_date_col: line_start_date # name of intervention date column
-    no_covid: False # flag to exclude covid years 2020 <=
     outcome_name: y # string of outcome of choice for experiment
-    # overall_survival_12_MONTHS, overall_survival_12_MONTHS_no_ae overall_survival_24_MONTHS
     outcome_type: binary # name of outcome type
     outcome_is_cost: False # flag if outcome is reward (survival) or cost (adverse event)
     scaler_name: False # name of scaler to perform on X data if given, otherwise Ｆalse
     causal_learner_type: [rlearner, xlearner, tlearner] # name of causal learner
-    run_feature_selection: False # flag to run feature selection
+    run_feature_selection: True # flag to run feature selection
     fs_method: boruta # name of feature selection to run
-    mutual_confounders: False # flag to take only features that were chosen by FS method in both arms
+    mutual_confounders: False # flag to take only features that were chosen by FS method in both intervention arms
     add_domain_expert_features: True # flag to add domain expert features after FS by treatments dict in utils_clinical
     n_selected_features: 30 # if FS method requires number of features to select
     boruta_clf_arg_dict: {"max_depth": 5, "n_estimators": 1000} # pass to clf in boruta fs METHOD
     boruta_perc: 100 # hyper parameters of boruta FS
     boruta_alpha: 0.05 # hyper parameters of boruta FS
-    clf_name_list: [GradientBoostingClassifier] #GradientBoostingClassifier] # list of classifier names to fit
-    score_name: log_loss #
-    inner_fold_num: 7 # when nested CV is performed in clf training - hyperparameters inner loop folds
+    clf_name_list: [lgbm, GaussianProcessClassifier, RandomForestClassifier, LogisticRegression,
+                    GradientBoostingClassifier] # list of clf to test
+    score_name: log_loss # metric
+    inner_fold_num: 7 # when nested CV is performed in clf training - hyper-parameters inner loop folds
     outer_fold_num: 7 #  when nested CV is performed in clf training - model selection outer loop folds
     skip_propensity_trimming: False # flag if to perform propensity based trimming
     test_propensity: True # flag to refit propensity for policy evaluation on test set
-    interactive_env: False # if env allowes interactive graphs via http port
+    interactive_env: True # if env allows interactive graphs via http port to show plotly express interactive graphs
     upsample: False # flag for imbalanced data to upsample minority class
-    causal_discovery: False # flag to run causal discovery step
-    d_top_outcome_shap: 12 # number of features to take from shap ranking in second training phase in outcome model
-    d_top_prop_shap: 8 # number of features to take from shap ranking in second training phase in propensity model
+    causal_discovery: True # flag to run causal discovery step
+    d_top_outcome_shap: 10 # number of features to take from shap ranking in second training phase in outcome model
+    d_top_prop_shap: 5 # number of features to take from shap ranking in second training phase in propensity model
     ftrs_to_exclude: [ # prefix of features to exclude from analysis
-                        '_max',
-                        '_mean',
-                        '_min',
-                        '_std',
-                        '_25%',
-                        '_50%',
-                        '_75%',
-                        '_count',
-                        'age_at_diagnosis',
-                        'age_at_adv_diagnosis',
-                        '_(',
-                        'biomarkerstatus_days_before_1line',
-                        'advanceddiagnosisdate',
-                        'diagnosisdate',
-                         # '_biomarkerstatus',
-                        'line_start_date_year',
-                        'before_1line_DAYS',
-                        'first_line_start_from_diagnosis_DAYS',
-#                        'first_line_start_from_diagnosis_MONTHS',
-                        'first_line_start_from_',
-#                        'null_ind',
-                        'last_date_',
-                         # "groupstage",
-                          "pdl1_percent_staining_max",
-#                        'pdl1_percent_staining_latest',
-                        'data_model_update_date',
-                        '_testbasename'
-    ]
-    mandatory_features: [ # features that have to be in all models (unlike domain expert features that are added only after FS)
-                          'gender',
-                          'pdl1_percent_staining_latest',
-                          'ecogvalue',
-                          'age_at_1line'
+                      'Z1'
+                      ]
+    mandatory_features: [ # feature exact names that have to be in all models (unlike domain expert features that
+      # are added only after FS)
+                        'W2'
                             ]

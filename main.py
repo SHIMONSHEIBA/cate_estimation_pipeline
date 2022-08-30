@@ -1,6 +1,4 @@
 import joblib
-import datetime
-from dateutil.relativedelta import relativedelta
 import pandas as pd
 import os
 from hydra.core.config_store import ConfigStore
@@ -14,13 +12,12 @@ from outcome_model import temp_outcome_modeling
 from cate_evaluation import CateEvaluation
 from policy_creation import PolicyCreation
 from policy_estimation import PolicyEstimation
+from sub_population_analysis import SubPopulationAnalysis
 from utils_config import CATEconfig
-from utils import exclude_by_date_col
 from utils_ml import feature_selection, sort_features_by_shap_values, get_score_params, \
     get_scaler_params, get_binary_classifier_models_dict, binary_clf_eval
-from utils_clinical import domain_expert_features_lists
+from utils_domain import domain_expert_features_lists
 from utils_graphs import plot_boxplot
-from sub_population_analysis import SubPopulationAnalysis
 # display
 pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
@@ -28,72 +25,38 @@ pd.set_option('display.max_columns', None)
 
 @hydra.main(config_path="conf", config_name="cate_config.yaml")
 def run_cate_pipeline(cfg: CATEconfig) -> None:
+    """
+    func responsible on all calls of different steps in CATE estimation pipeline
+    """
 
-    log.info("starting experiment on outcome {} with causal learners {}".format(
-        cfg.params.outcome_name, cfg.params.causal_learner_type))
+    log.info("starting experiment on outcome {} with causal meta learners {}".format(cfg.params.outcome_name, 
+                                                                                     cfg.params.causal_learner_type))
 
     # load data
     processed_data_obj_list = joblib.load(os.path.join(cfg.paths.data, cfg.files.data_object))
-    train_data, test_data, treatment_name, treatment0_name, treatment1_name, confounder_names_list, post_treatment_ftrs, \
-    train_impute_numeric_df, categorical_feature_names, cat_cols_mapping_dict = processed_data_obj_list
+    train_data, test_data, treatment_name, treatment0_name, treatment1_name, confounder_names_list, \
+    post_treatment_ftrs, train_impute_numeric_df, categorical_feature_names, cat_cols_mapping_dict \
+        = processed_data_obj_list
+    
     log.info("train shape: {}".format(train_data.shape))
     log.info("test shape: {}".format(test_data.shape))
-    
-    # follow up - exclude patients with less follow up (months) from index date to last data cutoff:
-    # # extract survival months from outcome name if exists # TODO: change logic
-    # if "overall_survival" in cfg.params.outcome_name:
-    #     survival_months_followup_cutoff = [int(s) for s in cfg.params.outcome_name.split('_') if s.isdigit()][0]
-    # else:
-    #     survival_months_followup_cutoff = 12
-    # update data cutoff with buffer to make sure outcome is updated (no false negatives)
-    log.info("update data_model_update_date cutoff with buffer of {}".format(cfg.params.update_date_buffer_months))
-    buffer = relativedelta(months=cfg.params.update_date_buffer_months)
-    data_model_update_date = datetime.datetime.strptime(cfg.params.data_model_update_date, '%d%m%Y').date() - buffer
-
-    log.info("exclude patients with less than {} months follow up cut off - by removing censored".format(
-        survival_months_followup_cutoff))
-    train_data = exclude_by_date_col(data=train_data, 
-                                     end_date=data_model_update_date, 
-                                     start_date_col_name=cfg.params.index_date_col, 
-                                     thresh_months=survival_months_followup_cutoff)
-    test_data = exclude_by_date_col(data=test_data, 
-                                    end_date=data_model_update_date,
-                                    start_date_col_name=cfg.params.index_date_col,
-                                    thresh_months=survival_months_followup_cutoff)
-
-    # TODO: remove after debug
-    train_data = train_data.head(800)
-    test_data = test_data.head(800)
 
     # exclude features from experiment
     confounder_names_list = [x for x in confounder_names_list if not any([substring in x for substring in
                                                                           cfg.params.ftrs_to_exclude])]
-    # # ---------- Data understanding ----------
+
     # see outcome counts per treatment arm in train/test
     log.info("{} outcome distribution per {} treatment arm (train):".format(cfg.params.outcome_name, treatment_name))
     log.info(train_data.groupby(treatment_name)[cfg.params.outcome_name].value_counts(dropna=False))
     log.info("{} outcome distribution per {} treatment arm (test):".format(cfg.params.outcome_name, treatment_name))
     log.info(test_data.groupby(treatment_name)[cfg.params.outcome_name].value_counts(dropna=False))
-    # log.info(train_data.groupby(cfg.params.outcome_name)["time_on_treatment_MONTHS"].mean().round(2))
     log.info(train_data[cfg.params.outcome_name].value_counts(dropna=False))
-
-    # exclude COVID-19 years
-    if cfg.params.no_covid:
-        log.info("excluding covid years for now in the data")
-        log.info("before")
-        log.info(train_data.shape)
-        log.info(test_data.shape)
-        train_data = train_data.loc[train_data["line_start_date_year"] < 2020, :]
-        test_data = test_data.loc[test_data["line_start_date_year"] < 2020, :]
-        log.info("after")
-        log.info(train_data.shape)
-        log.info(test_data.shape)
         
     # set score
     score, greater_is_better = get_score_params(cfg.params.score_name)
 
     # ---------- Scale data ----------
-    if cfg.params.scaler_name:  # TODO: ADD OPTION TO SCALE OUTCOME
+    if cfg.params.scaler_name:
         scaler = get_scaler_params(cfg.params.scaler_name)
         ftrs_to_scale = [x for x in confounder_names_list if x != treatment_name]
         log.info("STARTING scaling data with {} scaler".format(cfg.params.scaler_name))
@@ -108,8 +71,6 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
         treatment_name, cfg.params.outcome_name))
 
     # ---------- Feature selection ----------
-    # TODO: activate FS inside nested CV of model estimation and union chosen features
-
     # feature selection
     chosen_features_dict = dict()
     treatment_values_list = list(train_data[treatment_name].unique())
@@ -188,7 +149,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     joblib.dump(all_chosen_features, "all_chosen_features.pkl".format(treatment_name))
     binary_classifier_models_dict = get_binary_classifier_models_dict(clf_name_list=cfg.params.clf_name_list,
                                                                       categorical_names_list=
-                                                                      list(set(ftrs_to_use["categorical"]).intersection(
+                                                                      list(set(categorical_feature_names).intersection(
                                                                           all_chosen_features)))
 
     # ---------- Propensity model ----------
@@ -227,7 +188,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     # update categorical features
     binary_classifier_models_dict = get_binary_classifier_models_dict(clf_name_list=cfg.params.clf_name_list,
                                                                       categorical_names_list=
-                                                                      list(set(ftrs_to_use["categorical"]).intersection(
+                                                                      list(set(categorical_feature_names).intersection(
                                                                           top_propensity_shap_features)))
 
     propensity_model = propensity_model_obj.temp_fit_prop(train_data=train_data,
@@ -306,7 +267,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     # update categorical features
     binary_classifier_models_dict = get_binary_classifier_models_dict(clf_name_list=cfg.params.clf_name_list,
                                                                       categorical_names_list=
-                                                                      list(set(ftrs_to_use["categorical"]).intersection(
+                                                                      list(set(categorical_feature_names).intersection(
                                                                           all_chosen_features)))
 
     chosen_outcome_model_name, chosen_outcome_model_name_dict, _, _ = \
@@ -373,7 +334,7 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     # update categorical features
     binary_classifier_models_dict = get_binary_classifier_models_dict(clf_name_list=cfg.params.clf_name_list,
                                                                       categorical_names_list=
-                                                                      list(set(ftrs_to_use["categorical"]).intersection(
+                                                                      list(set(categorical_feature_names).intersection(
                                                                           top_outcome_shap_features)))
 
     # model again with top features to reduce over-fitting

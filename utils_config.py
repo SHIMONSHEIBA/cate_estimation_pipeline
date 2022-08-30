@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-# from typing import List
+from typing import List
 
 # ---- Data pre processing data classes
 
@@ -19,8 +19,11 @@ class Files:
 class DataProcessParams:
     train_test_split_method: str
     min_test_year: int
+    corr_thresh: float
     test_size: float
     impute: bool
+    outliers: bool
+    outliers_range: List
     categorical: str
 
 
@@ -35,10 +38,6 @@ class DataProcessConfig:
 
 @dataclass
 class Params:
-    data_model_update_date: str
-    update_date_buffer_months: int
-    index_date_col: str
-    no_covid: bool
     outcome_name: str
     outcome_type: str
     outcome_is_cost: bool

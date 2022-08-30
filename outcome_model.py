@@ -100,7 +100,7 @@ def temp_outcome_modeling(causal_learner_type, train_data, test_data, all_chosen
                                       score_name=score_name,
                                       greater_is_better=greater_is_better,
                                       upsample=upsample,
-                                      nested_step=False,
+                                      nested_step=True,
                                       fit_params=model_dict["fit_params"] if "fit_params" in model_dict.keys() else None)
     
                     outcome_models_dict[model_name] = curr_outcome_model
@@ -168,7 +168,7 @@ def temp_outcome_modeling(causal_learner_type, train_data, test_data, all_chosen
 
                 # TODO: define dynamically
                 # choose best model
-                chosen_outcome_model_name = "GradientBoostingClassifier" # "lgbm"
+                chosen_outcome_model_name = "lgbm"
                 chosen_outcome_model_name_dict[arm][chosen_outcome_model_name] = \
                     outcome_models_dict[chosen_outcome_model_name]
 

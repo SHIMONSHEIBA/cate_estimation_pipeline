@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import hydra
-from utils import save_simulated_data
 import logging
-from collections import defaultdict
-from utils_config import DataProcessConfig
 from hydra.core.config_store import ConfigStore
+from collections import defaultdict
+from utils import save_simulated_data, remove_quantiles
+from utils_config import DataProcessConfig
+from utils_ml import remove_corr_features
+
 
 pd.set_option("display.max_rows", 10000)
 pd.set_option("display.max_columns", 10000)
@@ -30,8 +32,13 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
     data_dict = joblib.load(os.path.join(cfg.paths.data, cfg.files.data_object))
 
     data = data_dict["df"]
+    log.info("Running data pre process on data shape {} ".format(data.shape))
 
+    # validate treatment is int
+    data[data_dict["treatment_name"]] = data[data_dict["treatment_name"]].astype("int")
     treatment0_name, treatment1_name = sorted(data[data_dict["treatment_name"][0]].unique())
+
+    data[data_dict["outcome_name"]] = data[data_dict["outcome_name"]].astype("int")
 
     # all candidate features
     confounder_names_list = \
@@ -45,14 +52,10 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
     bool_cols = [col for col in confounder_names_list if np.isin(data[col].dropna().unique(), [0, 1]).all()]
     categorical_feature_names = data.select_dtypes(include=['object']).columns.difference(bool_cols)
     numeric_feature_names = data.select_dtypes(include=['number', 'category']).columns.difference(bool_cols)
-
-    print("Running data pre process on data shape {} ".format(data.shape))
+    data[numeric_feature_names] = data[numeric_feature_names].apply(pd.to_numeric, errors='coerce')
 
     # Unify NULL
     data.replace({np.nan: None, "none": None}, inplace=True)
-
-    # validate treatment is int
-    data[data_dict["treatment_name"]] = data[data_dict["treatment_name"]].astype("int")
 
     # see if missingness patterns exist
     msno.matrix(data.iloc[:, : 50]).set_title("Missing patterns")
@@ -93,9 +96,22 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
         log.info("random train: {}".format(train_data.shape))
         log.info("random test: {}".format(test_data.shape))
 
+    # remove highly correlated features
+    corr_ftrs_to_drop = remove_corr_features(data=train_data.loc[:, train_data.columns != data_dict["treatment_name"][0]],
+                                             corr_thresh=cfg.params.corr_thresh)
+    log.info("removing corr features from the data: {}".format(corr_ftrs_to_drop))
+    train_data.drop(columns=corr_ftrs_to_drop, axis=1, inplace=True)
+
+    # remove rows with extreme values
+    if cfg.params.outliers:
+        for col in numeric_feature_names:
+            train_data = remove_quantiles(df=train_data, value_col=col, min_quantile=cfg.params.outliers_range[0],
+                                          max_quantile=cfg.params.outliers_range[1])
+
+    # impute missing values
     train_impute_numeric_df = None
     if cfg.params.impute:
-        print("Imputing MISSING DATA")
+        print("Imputing missing data")
         # impute train
         log.info("Impute X train_data (binary with 0, numeric with mode)")
         # impute binary with 0
@@ -104,9 +120,6 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
         train_impute_numeric_df = train_data.loc[:, numeric_feature_names].mode().iloc[0]
         train_data.loc[:, numeric_feature_names] = \
             train_data.loc[:, numeric_feature_names].fillna(train_impute_numeric_df)
-        # # Impute numeric with KNN
-        # knn_numeric_imputer = KNNImputer(n_neighbors=3)
-        # train.loc[:, numeric_feature_names] = knn_numeric_imputer.fit_transform(train.loc[:, numeric_feature_names])
 
         log.info("----------------------Train data summary after imputation")
         mytable_train = TableOne(train_data)
@@ -119,8 +132,6 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
         # impute numerical in test with the train mode
         test_data.loc[:, numeric_feature_names] = \
             test_data.loc[:, numeric_feature_names].fillna(train_impute_numeric_df)
-        # # impute numeric test with train KNN
-        # test.loc[:, numeric_feature_names] = knn_numeric_imputer.transform(test.loc[:, numeric_feature_names])
 
     # code category variable
     cat_cols_mapping_dict = defaultdict(dict)
@@ -160,7 +171,7 @@ def data_pre_process(cfg: DataProcessConfig) -> None:
     log.info("-------FINAL TRAIN SHAPE: {}".format(train_data.shape))
     log.info("-------FINAL TEST SHAPE: {}".format(test_data.shape))
 
-    joblib.dump([train_data, test_data, data_dict["treatment_name"], treatment0_name, treatment1_name,
+    joblib.dump([train_data, test_data, data_dict["treatment_name"][0], treatment0_name, treatment1_name,
                  confounder_names_list, post_treatment_ftrs, train_impute_numeric_df, categorical_feature_names,
                  cat_cols_mapping_dict],
                 "processed_data_obj_list.pkl")

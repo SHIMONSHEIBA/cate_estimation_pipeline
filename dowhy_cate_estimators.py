@@ -3,14 +3,12 @@
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LassoCV
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestClassifier
-from dowhy import CausalModel, datasets
+from dowhy import CausalModel
 from sklearn.linear_model import LogisticRegressionCV
 from econml.inference import BootstrapInference
 import numpy as np
 import pandas as pd
 from utils import generate_controls_outcome, generate_data
-
-# TODO: add "category" attribute to all_trimmed_high_cate self.method_params["init_params"]
 
 
 class CausalLearner:
