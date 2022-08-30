@@ -137,8 +137,6 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                                                             cfg.params.outcome_name))
 
     # ------- ML models estimation ------------
-    # TODO: customize objective metric - add F1
-    # TODO: validate when no FS
     if cfg.params.mutual_confounders:
         # take only mutual between arms
         all_chosen_features = list(set(chosen_features_dict[0]).intersection(chosen_features_dict[1]))
@@ -147,6 +145,9 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
         all_chosen_features = list(set([item for sublist in chosen_features_dict.values() for item in sublist]))
 
     joblib.dump(all_chosen_features, "all_chosen_features.pkl".format(treatment_name))
+    # validate GradientBoostingClassifier is in for policy value estimator neutral prediction
+    cfg.params.clf_name_list.append('GradientBoostingClassifier')
+    cfg.params.clf_name_list = list(set(cfg.params.clf_name_list))
     binary_classifier_models_dict = get_binary_classifier_models_dict(clf_name_list=cfg.params.clf_name_list,
                                                                       categorical_names_list=
                                                                       list(set(categorical_feature_names).intersection(
@@ -555,26 +556,26 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                  y_label=cfg.params.outcome_name)
     joblib.dump(policy_value_df_test, os.path.join(policy_path, "policy_value_df_test.pkl"))
 
-    # ----- Evaluate intervention policy - With KM curves
+    # # ----- Evaluate intervention policy - With KM curves
     chosen_policies = ["xlearner_policy", "current_policy"]  # TODO: make dynamic
-
-    log.info("Policy Evaluation - IPW KM TRAIN")
-    policy_est_obj.ipw_km(data=sample_data_train,
-                          propensity_score_name=propensity_score_name,
-                          treatment_name=treatment_name,
-                          policy_names=policies_df_train.columns.intersection(chosen_policies),
-                          policy_path=policy_path,
-                          title="Flatiron NSCLC OS - TRAIN",
-                          sipw=False)
-
-    log.info("Policy Evaluation - IPW KM TEST")
-    policy_est_obj.ipw_km(data=sample_data_test,
-                          propensity_score_name=propensity_score_name_policy,
-                          treatment_name=treatment_name,
-                          policy_names=policies_df_test.columns.intersection(chosen_policies),
-                          policy_path=policy_path,
-                          title="Flatiron NSCLC OS - TEST",
-                          sipw=False)
+    #
+    # log.info("Policy Evaluation - IPW KM TRAIN")
+    # policy_est_obj.ipw_km(data=sample_data_train,
+    #                       propensity_score_name=propensity_score_name,
+    #                       treatment_name=treatment_name,
+    #                       policy_names=policies_df_train.columns.intersection(chosen_policies),
+    #                       policy_path=policy_path,
+    #                       title="Flatiron NSCLC OS - TRAIN",
+    #                       sipw=False)
+    #
+    # log.info("Policy Evaluation - IPW KM TEST")
+    # policy_est_obj.ipw_km(data=sample_data_test,
+    #                       propensity_score_name=propensity_score_name_policy,
+    #                       treatment_name=treatment_name,
+    #                       policy_names=policies_df_test.columns.intersection(chosen_policies),
+    #                       policy_path=policy_path,
+    #                       title="Flatiron NSCLC OS - TEST",
+    #                       sipw=False)
 
     log.info("Policy Explanation - regress on Policy decision TRAIN")
 
