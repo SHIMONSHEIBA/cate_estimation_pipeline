@@ -1,6 +1,6 @@
 # cate_estimation_pipeline
 Configurable experimentation code for Conditional Average Treatment Effect (CATE) estimation of binary intervention on a binary outcome
-
+CATE defined as the difference in intervention response: For binary Y & T, and for feature vector X as CATE(X) = E[Y|T=1,X] - E[Y|T=0,X]
 
 1. data_pre_processing.py: Basic data processing (simulated data created with save_simulated_data() as an example run: saved in data/simulated_data_dict.pkl)
 manage experiment configurations in config/data_process_config.yaml, conf/files/simulated_data.yaml & utils_config.py
