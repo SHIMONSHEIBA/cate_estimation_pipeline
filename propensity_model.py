@@ -83,9 +83,9 @@ class PropensityModel:
         return NotImplementedError
 
     # temp func to clean main - TODO break to class methods
-    def temp_fit_prop(self, train_data, treatment_name, modeling_path, all_chosen_features,
-                      binary_classifier_models_dict, outer_fold_num,
-                      inner_fold_num, score, score_name, greater_is_better, interactive_env):
+    def fit_prop(self, train_data, treatment_name, modeling_path, all_chosen_features,
+                 binary_classifier_models_dict, outer_fold_num,
+                 inner_fold_num, score, score_name, greater_is_better, interactive_env):
 
         propensity_models_dict = {}
 

@@ -8,7 +8,7 @@ import logging
 # internal
 from causalis_graph import CausalisGraph
 from propensity_model import PropensityModel
-from outcome_model import temp_outcome_modeling
+from outcome_model import outcome_modeling
 from cate_evaluation import CateEvaluation
 from policy_creation import PolicyCreation
 from policy_estimation import PolicyEstimation
@@ -156,17 +156,17 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
     log.info("training propensity models")
     propensity_model_obj = PropensityModel()
     # fit initial propensity
-    propensity_model = propensity_model_obj.temp_fit_prop(train_data, 
-                                                          treatment_name, 
-                                                          os.getcwd(),
-                                                          all_chosen_features,
-                                                          binary_classifier_models_dict, 
-                                                          cfg.params.outer_fold_num, 
-                                                          cfg.params.inner_fold_num, 
-                                                          score, 
-                                                          cfg.params.score_name, 
-                                                          greater_is_better, 
-                                                          cfg.params.interactive_env)
+    propensity_model = propensity_model_obj.fit_prop(train_data,
+                                                     treatment_name,
+                                                     os.getcwd(),
+                                                     all_chosen_features,
+                                                     binary_classifier_models_dict,
+                                                     cfg.params.outer_fold_num,
+                                                     cfg.params.inner_fold_num,
+                                                     score,
+                                                     cfg.params.score_name,
+                                                     greater_is_better,
+                                                     cfg.params.interactive_env)
 
     # calc propensity features shap importance
     top_propensity_shap_features = sort_features_by_shap_values(model=propensity_model,
@@ -191,18 +191,18 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                                       list(set(categorical_feature_names).intersection(
                                                                           top_propensity_shap_features)))
 
-    propensity_model = propensity_model_obj.temp_fit_prop(train_data=train_data,
-                                                          treatment_name=treatment_name,
-                                                          modeling_path=propensity_top_shap_path,
-                                                          all_chosen_features=top_propensity_shap_features,
-                                                          binary_classifier_models_dict=
+    propensity_model = propensity_model_obj.fit_prop(train_data=train_data,
+                                                     treatment_name=treatment_name,
+                                                     modeling_path=propensity_top_shap_path,
+                                                     all_chosen_features=top_propensity_shap_features,
+                                                     binary_classifier_models_dict=
                                                           binary_classifier_models_dict,
-                                                          outer_fold_num=cfg.params.outer_fold_num,
-                                                          inner_fold_num=cfg.params.inner_fold_num,
-                                                          score=score,
-                                                          score_name=cfg.params.score_name,
-                                                          greater_is_better=greater_is_better,
-                                                          interactive_env=cfg.params.interactive_env)
+                                                     outer_fold_num=cfg.params.outer_fold_num,
+                                                     inner_fold_num=cfg.params.inner_fold_num,
+                                                     score=score,
+                                                     score_name=cfg.params.score_name,
+                                                     greater_is_better=greater_is_better,
+                                                     interactive_env=cfg.params.interactive_env)
 
     joblib.dump(top_propensity_shap_features, "top_propensity_shap_features.pkl".format(treatment_name))
 
@@ -271,23 +271,23 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
                                                                           all_chosen_features)))
 
     chosen_outcome_model_name, chosen_outcome_model_name_dict, _, _ = \
-        temp_outcome_modeling(causal_learner_type=["tlearner"],
-                              train_data=train_data.loc[common_support_train_data_ids, :],
-                              test_data=test_data.loc[common_support_test_data_ids, :],
-                              all_chosen_features=all_chosen_features,
-                              treatment_name=treatment_name,
-                              outcome_name=cfg.params.outcome_name,
-                              greater_is_better=greater_is_better,
-                              score=score,
-                              outcome_path=outcome_path,
-                              chosen_features_dict=chosen_features_dict,
-                              treatment_values_list=treatment_values_list,
-                              binary_classifier_models_dict=binary_classifier_models_dict,
-                              outer_fold_num=cfg.params.outer_fold_num,
-                              inner_fold_num=cfg.params.inner_fold_num,
-                              score_name=cfg.params.score_name,
-                              upsample=cfg.params.upsample,
-                              interactive_env=cfg.params.interactive_env)
+        outcome_modeling(causal_learner_type=["tlearner"],
+                         train_data=train_data.loc[common_support_train_data_ids, :],
+                         test_data=test_data.loc[common_support_test_data_ids, :],
+                         all_chosen_features=all_chosen_features,
+                         treatment_name=treatment_name,
+                         outcome_name=cfg.params.outcome_name,
+                         greater_is_better=greater_is_better,
+                         score=score,
+                         outcome_path=outcome_path,
+                         chosen_features_dict=chosen_features_dict,
+                         treatment_values_list=treatment_values_list,
+                         binary_classifier_models_dict=binary_classifier_models_dict,
+                         outer_fold_num=cfg.params.outer_fold_num,
+                         inner_fold_num=cfg.params.inner_fold_num,
+                         score_name=cfg.params.score_name,
+                         upsample=cfg.params.upsample,
+                         interactive_env=cfg.params.interactive_env)
 
     # to reduce d of y models - take top d_top_outcome_shap features + mandatory features
     top_outcome_y0_shap_features = sort_features_by_shap_values(
@@ -339,23 +339,23 @@ def run_cate_pipeline(cfg: CATEconfig) -> None:
 
     # model again with top features to reduce over-fitting
     chosen_outcome_model_name, chosen_outcome_model_name_dict, rlearner_obj, xlearner_obj = \
-        temp_outcome_modeling(causal_learner_type=cfg.params.causal_learner_type,
-                              train_data=train_data.loc[common_support_train_data_ids, :],
-                              test_data=test_data.loc[common_support_test_data_ids, :],
-                              all_chosen_features=top_outcome_shap_features,
-                              treatment_name=treatment_name,
-                              outcome_name=cfg.params.outcome_name,
-                              greater_is_better=greater_is_better,
-                              score=score,
-                              outcome_path=outcome_top_shap_path,
-                              chosen_features_dict=chosen_features_dict,
-                              treatment_values_list=treatment_values_list,
-                              binary_classifier_models_dict=binary_classifier_models_dict,
-                              outer_fold_num=cfg.params.outer_fold_num,
-                              inner_fold_num=cfg.params.inner_fold_num,
-                              score_name=cfg.params.score_name,
-                              upsample=cfg.params.upsample,
-                              interactive_env=cfg.params.interactive_env)
+        outcome_modeling(causal_learner_type=cfg.params.causal_learner_type,
+                         train_data=train_data.loc[common_support_train_data_ids, :],
+                         test_data=test_data.loc[common_support_test_data_ids, :],
+                         all_chosen_features=top_outcome_shap_features,
+                         treatment_name=treatment_name,
+                         outcome_name=cfg.params.outcome_name,
+                         greater_is_better=greater_is_better,
+                         score=score,
+                         outcome_path=outcome_top_shap_path,
+                         chosen_features_dict=chosen_features_dict,
+                         treatment_values_list=treatment_values_list,
+                         binary_classifier_models_dict=binary_classifier_models_dict,
+                         outer_fold_num=cfg.params.outer_fold_num,
+                         inner_fold_num=cfg.params.inner_fold_num,
+                         score_name=cfg.params.score_name,
+                         upsample=cfg.params.upsample,
+                         interactive_env=cfg.params.interactive_env)
 
 # ----------- Causal Discovery -----------------
     if cfg.params.causal_discovery:

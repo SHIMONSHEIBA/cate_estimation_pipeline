@@ -12,10 +12,10 @@ import logging
 log = logging.getLogger(__name__)
 
 
-def temp_outcome_modeling(causal_learner_type, train_data, test_data, all_chosen_features,
-                          treatment_name, outcome_name, greater_is_better, score, outcome_path, chosen_features_dict,
-                          treatment_values_list, binary_classifier_models_dict, outer_fold_num, inner_fold_num,
-                          score_name, upsample, interactive_env):
+def outcome_modeling(causal_learner_type, train_data, test_data, all_chosen_features,
+                     treatment_name, outcome_name, greater_is_better, score, outcome_path, chosen_features_dict,
+                     treatment_values_list, binary_classifier_models_dict, outer_fold_num, inner_fold_num,
+                     score_name, upsample, interactive_env):
 
     rlearner_obj = None
     xlearner_obj = None
