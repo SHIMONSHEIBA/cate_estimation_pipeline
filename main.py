@@ -73,6 +73,7 @@ def scale_data(cfg, confounder_names_list, treatment_name, train_data, test_data
 
     return scaler, train_data, test_data
 
+
 def fs(cfg, train_data, treatment_name, confounder_names_list, treatment0_name, treatment1_name):
     # ---------- Feature selection ----------
     # feature selection
