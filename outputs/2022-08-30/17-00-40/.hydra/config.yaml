@@ -1,0 +1,16 @@
+files:
+  data_object: data/simulated_data_dict.pkl
+paths:
+  log: ./runs
+  data: ${hydra:runtime.cwd}
+params:
+  train_test_split_method: random
+  min_test_year: 2020
+  corr_thresh: 0.9
+  test_size: 0.2
+  impute: true
+  outliers: false
+  outliers_range:
+  - 0.01
+  - 0.99
+  categorical: cat_codes
