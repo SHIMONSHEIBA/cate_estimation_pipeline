@@ -12,12 +12,12 @@ Manage experiment configurations in config/cate_config.yaml, conf/files/simulate
 Pipeline steps:
 - Data load
 - Data scaling
-- Feature selection (domain knowledge user input validation)
-- Propensity estimation and ml models evaluation (nested CV fit iterated via top shapley values for reducing overfitting)
-- Common support causal assumption validation via propensity trimming
-- Causal meta learners fit: outcome estimation and ml models evaluation (nested CV fit iterated via top shapley values for reducing overfitting)
-- Causal discovery: graph generation 
+- Feature selection ( + domain knowledge user input validation)
+- Propensity estimation and ml models evaluation (nested CV fit iterated twice via top shapley values for reducing overfitting)
+- Common support causal assumption validation via propensity trimming: Validate overlap in distribution of X between different intervention arms)
+- Causal meta learners fit: Outcome estimation with causal meta-learners ensemble (introduction to learners here: https://econml.azurewebsites.net/spec/estimation/metalearners.html) and ml models evaluation (nested CV fit iterated twice via top shapley values for reducing overfitting)
+- Causal discovery: Graph generation 
 - CATE analysis (plots, agreement between different estimators, ATE, correlations)
 - Intervention policy creation
-- Intervention policy estimation: doubly robust policy value shown in bootstrapped box plots for confidence
-- Sub population analysis - helper regression model to explain intervention policy decisions
+- Intervention policy estimation: Doubly robust policy value (A stabilized version of Eq. in Section 2.2 here: https://arxiv.org/abs/1103.4601) shown via box plots based on Monte Carlo sampling for confidence intervals.
+- Sub population analysis: Helper regression model to explain intervention policy decisions, i.e. what drove the causal learners to recommend intervention 1 or intervention 0
