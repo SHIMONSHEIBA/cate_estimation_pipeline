@@ -19,5 +19,5 @@ Pipeline steps:
 - Causal discovery: Graph generation 
 - CATE analysis (plots, agreement between different estimators, ATE, correlations)
 - Intervention policy creation
-- Intervention policy estimation: Doubly robust policy value (A stabilized version of Eq. in Section 2.2 here: https://arxiv.org/abs/1103.4601) shown via box plots based on Monte Carlo sampling for confidence intervals.
+- Intervention policy estimation: Doubly robust policy value (A stabilized version of Eq. in Section 2.2 here: https://arxiv.org/abs/1103.4601) shown via box plots based on bootstrapping sampling for error confidence intervals.
 - Sub population analysis: Helper regression model to explain intervention policy decisions, i.e. what drove the causal learners to recommend intervention 1 or intervention 0
